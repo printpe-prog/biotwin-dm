@@ -1,0 +1,87 @@
+/* ===========================================================================
+ * styles.css — Estilos propios del prototipo (complementan a Tailwind CDN).
+ * Modo oscuro clínico de alta tecnología.
+ * =========================================================================== */
+
+/* Base oscura clínica */
+html, body { background-color: #020617; /* slate-950 */ }
+body { color: #e2e8f0; }
+
+/* Campos del formulario de nuevo paciente */
+#formPaciente input,
+#formPaciente select,
+#formPaciente textarea {
+  width: 100%;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.75rem;
+  color: #e2e8f0;
+}
+#formPaciente input:focus,
+#formPaciente select:focus,
+#formPaciente textarea:focus {
+  outline: none;
+  border-color: #38bdf8;
+}
+
+/* Scrollbar minimalista para tema oscuro */
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: #0f172a; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Punto de estado pulsante */
+.status-dot {
+  width: 9px; height: 9px; border-radius: 9999px;
+  background: #34d399; box-shadow: 0 0 8px #34d399;
+  animation: pulseDot 1.6s ease-in-out infinite;
+}
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.35); }
+}
+
+/* Interruptor (toggle) del Agente RL */
+.switch {
+  width: 48px; height: 26px; border-radius: 9999px;
+  background: #475569; position: relative; cursor: pointer;
+  transition: background-color .3s ease; flex: none;
+}
+.switch.on { background: #10b981; box-shadow: 0 0 10px rgba(16,185,129,.4); }
+.switch .knob {
+  position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
+  border-radius: 9999px; background: #e2e8f0; transition: transform .3s ease;
+}
+.switch.on .knob { transform: translateX(22px); }
+
+/* Consola tipo terminal */
+.terminal {
+  background: #020617; border: 1px solid #1e293b;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px; line-height: 1.55;
+}
+.terminal .line { white-space: pre-wrap; word-break: break-all; }
+
+/* Modal fade */
+.modal-overlay { transition: opacity .25s ease; }
+.modal-card { transition: transform .25s ease, opacity .25s ease; }
+
+/* Barra de progreso KPI */
+.kpi-bar-fill { transition: width .6s cubic-bezier(.22,1,.36,1), background-color .3s; }
+
+/* Realce sutil de cards al hover */
+.card { transition: border-color .3s ease, box-shadow .3s ease; }
+.card:hover { border-color: #334155; }
+
+/* Indicador de pipeline */
+.spinner {
+  width: 14px; height: 14px; border: 2px solid #334155;
+  border-top-color: #38bdf8; border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Números tabulares para datos clínicos */
+.tnum { font-variant-numeric: tabular-nums; }

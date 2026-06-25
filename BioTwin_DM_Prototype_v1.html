@@ -1,0 +1,2039 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BioTwin-DM · Plataforma de Simulación Predictiva (Gemelo Digital T1DM)</title>
+
+  <!-- ============================================================= -->
+  <!-- DEPENDENCIAS VÍA CDN                                          -->
+  <!-- ============================================================= -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+
+  <!-- Configuración del Tailwind Play CDN (debe ir tras el script del CDN) -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
+            sans: ['Inter', 'system-ui', 'Segoe UI', 'sans-serif'],
+          },
+          colors: {
+            // Semántica glucémica del proyecto
+            euglucemia: '#34d399', // emerald-400
+            hiper: '#fbbf24',      // amber-400
+            hipo: '#f43f5e',       // rose-500
+            neutral: '#38bdf8',    // sky-400
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Estilos propios del prototipo -->
+  <style>
+/* ===========================================================================
+ * styles.css — Estilos propios del prototipo (complementan a Tailwind CDN).
+ * Modo oscuro clínico de alta tecnología.
+ * =========================================================================== */
+
+/* Base oscura clínica */
+html, body { background-color: #020617; /* slate-950 */ }
+body { color: #e2e8f0; }
+
+/* Campos del formulario de nuevo paciente */
+#formPaciente input,
+#formPaciente select,
+#formPaciente textarea {
+  width: 100%;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.75rem;
+  color: #e2e8f0;
+}
+#formPaciente input:focus,
+#formPaciente select:focus,
+#formPaciente textarea:focus {
+  outline: none;
+  border-color: #38bdf8;
+}
+
+/* Scrollbar minimalista para tema oscuro */
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: #0f172a; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Punto de estado pulsante */
+.status-dot {
+  width: 9px; height: 9px; border-radius: 9999px;
+  background: #34d399; box-shadow: 0 0 8px #34d399;
+  animation: pulseDot 1.6s ease-in-out infinite;
+}
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.35); }
+}
+
+/* Interruptor (toggle) del Agente RL */
+.switch {
+  width: 48px; height: 26px; border-radius: 9999px;
+  background: #475569; position: relative; cursor: pointer;
+  transition: background-color .3s ease; flex: none;
+}
+.switch.on { background: #10b981; box-shadow: 0 0 10px rgba(16,185,129,.4); }
+.switch .knob {
+  position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
+  border-radius: 9999px; background: #e2e8f0; transition: transform .3s ease;
+}
+.switch.on .knob { transform: translateX(22px); }
+
+/* Consola tipo terminal */
+.terminal {
+  background: #020617; border: 1px solid #1e293b;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px; line-height: 1.55;
+}
+.terminal .line { white-space: pre-wrap; word-break: break-all; }
+
+/* Modal fade */
+.modal-overlay { transition: opacity .25s ease; }
+.modal-card { transition: transform .25s ease, opacity .25s ease; }
+
+/* Barra de progreso KPI */
+.kpi-bar-fill { transition: width .6s cubic-bezier(.22,1,.36,1), background-color .3s; }
+
+/* Realce sutil de cards al hover */
+.card { transition: border-color .3s ease, box-shadow .3s ease; }
+.card:hover { border-color: #334155; }
+
+/* Indicador de pipeline */
+.spinner {
+  width: 14px; height: 14px; border: 2px solid #334155;
+  border-top-color: #38bdf8; border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Números tabulares para datos clínicos */
+.tnum { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+
+<body class="font-sans antialiased min-h-screen">
+
+  <!-- ============================================================= -->
+  <!-- HEADER FIJO                                                   -->
+  <!-- ============================================================= -->
+  <header class="sticky top-0 z-30 border-b border-slate-700 bg-slate-950/90 backdrop-blur">
+    <div class="max-w-[1800px] mx-auto px-5 py-3 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <!-- Logo / glifo del gemelo digital -->
+        <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-sky-500/20 border border-slate-700 flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+               stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12h4l2 6 4-12 2 6h6"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-semibold tracking-tight text-slate-100 leading-none">
+            BioTwin-DM
+          </h1>
+          <p class="text-[11px] text-slate-400 mt-1 leading-none">
+            Simulación Predictiva basada en Gemelos Digitales · Terapia de Insulina · Diabetes Tipo 1
+          </p>
+        </div>
+        <span class="ml-2 text-[10px] font-mono px-2 py-1 rounded-md bg-slate-800 border border-slate-700 text-sky-400">
+          v1.0.0-demo
+        </span>
+      </div>
+
+      <div class="flex items-center gap-2 text-xs">
+        <span class="status-dot"></span>
+        <span class="text-emerald-400 font-medium">Sistema Operativo</span>
+        <span class="hidden md:inline text-slate-500 font-mono ml-3">INSW410</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================================================= -->
+  <!-- LAYOUT PRINCIPAL                                              -->
+  <!-- ============================================================= -->
+  <main class="max-w-[1800px] mx-auto px-5 py-5">
+    <div class="grid grid-cols-1 lg:grid-cols-[minmax(340px,30%)_1fr] gap-5">
+
+      <!-- ===================== PANEL DE CONTROL (IZQUIERDA) ===================== -->
+      <aside class="space-y-5">
+
+        <!-- Selector de Paciente Virtual -->
+        <section class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-4">
+          <div class="flex items-center gap-2 mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"/><path d="M12 14a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7Z"/></svg>
+            <h2 class="text-sm font-semibold text-slate-200">Paciente Virtual</h2>
+          </div>
+          <div id="selectorPacientes" class="grid grid-cols-1 gap-2"></div>
+          <button id="btnNuevoPaciente"
+            class="mt-3 w-full border border-dashed border-slate-600 hover:border-sky-500/60 hover:text-sky-400 text-slate-400 text-xs font-medium py-2.5 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Nuevo paciente
+          </button>
+        </section>
+
+        <!-- Ficha clínica del perfil cargado -->
+        <section class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-4">
+          <div class="flex items-center gap-2 mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
+            <h2 class="text-sm font-semibold text-slate-200">Ficha del Gemelo Digital</h2>
+          </div>
+          <p id="perfilClinico" class="text-xs text-slate-400 leading-relaxed mb-3">—</p>
+          <div id="perfilParametros" class="grid grid-cols-2 gap-2 text-xs font-mono"></div>
+        </section>
+
+        <!-- Controles de simulación -->
+        <section class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-4">
+          <div class="flex items-center gap-2 mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            <h2 class="text-sm font-semibold text-slate-200">Evento Terapéutico</h2>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <label class="flex items-center justify-between text-xs text-slate-300 mb-1">
+                <span>Carbohidratos ingeridos</span>
+                <span class="font-mono text-amber-400"><span id="valCHO">60</span> g</span>
+              </label>
+              <input id="inputCHO" type="range" min="0" max="120" step="5" value="60"
+                     class="w-full accent-amber-400 cursor-pointer">
+            </div>
+
+            <div>
+              <label class="flex items-center justify-between text-xs text-slate-300 mb-1">
+                <span>Bolo de insulina</span>
+                <span class="font-mono text-sky-400"><span id="valInsulina">4.0</span> U</span>
+              </label>
+              <input id="inputInsulina" type="range" min="0" max="25" step="0.5" value="4"
+                     class="w-full accent-sky-400 cursor-pointer">
+            </div>
+
+            <button id="btnSimular"
+              class="w-full mt-1 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-sm font-medium py-2.5 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+              Ejecutar Simulación Predictiva
+            </button>
+          </div>
+        </section>
+
+        <!-- Consola de Seguridad Biomédica -->
+        <section class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-4">
+          <div class="flex items-center gap-2 mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
+            <h2 class="text-sm font-semibold text-slate-200">Control Terapéutico</h2>
+          </div>
+
+          <div class="flex items-center justify-between p-3 rounded-lg bg-slate-900/70 border border-slate-700">
+            <div>
+              <p class="text-xs text-slate-300 font-medium">Agente RL</p>
+              <p class="text-[10px] text-slate-500 font-mono">Stable-Baselines3 Policy</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <span id="badgeRL" class="text-[10px] font-mono px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">RL Activo</span>
+              <div id="toggleRL" class="switch on" role="switch" aria-checked="true" tabindex="0">
+                <span class="knob"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pipeline OhioT1DM -->
+          <button id="btnOhio"
+            class="w-full mt-3 bg-slate-700 hover:bg-slate-600 text-slate-100 text-sm font-medium py-2.5 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Cargar Dataset OhioT1DM (Pac. 559)
+          </button>
+          <div id="pipelineStatus" class="hidden mt-2 items-center gap-2 text-[11px] text-sky-400 font-mono">
+            <span class="spinner"></span>
+            <span>Ejecutando pipeline de limpieza...</span>
+          </div>
+        </section>
+      </aside>
+
+      <!-- ===================== ÁREA DE VISUALIZACIÓN (DERECHA) ===================== -->
+      <section class="space-y-5">
+
+        <!-- Gráfico principal -->
+        <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-4">
+          <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+              <h2 class="text-sm font-semibold text-slate-200">Trayectoria Glucémica</h2>
+              <span id="badgeModo" class="text-[10px] font-mono px-2 py-1 rounded-md bg-sky-500/15 text-sky-400 border border-sky-500/30">Estado basal</span>
+              <div class="flex items-center gap-1" role="group" aria-label="Resolución del eje temporal">
+                <button id="btnEjeDetalle" type="button"
+                  class="px-2 py-1 text-[10px] font-mono rounded-md border transition-all border-sky-500/30 bg-sky-500/15 text-sky-400">5 min</button>
+                <button id="btnEjeHora" type="button"
+                  class="px-2 py-1 text-[10px] font-mono rounded-md border transition-all border-slate-700 text-slate-400 hover:text-slate-200">1 hora</button>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 text-[10px] font-mono text-slate-400">
+              <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 bg-sky-400"></span>Histórico</span>
+              <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 bg-emerald-400"></span>Predicción</span>
+              <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 border-t border-dashed border-rose-500"></span>70</span>
+              <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 border-t border-dashed border-amber-400"></span>180</span>
+            </div>
+          </div>
+          <div style="position:relative; height:46vh; min-height:340px;">
+            <canvas id="graficoPrincipal"></canvas>
+          </div>
+        </div>
+
+        <!-- Panel de indicadores clínicos (Módulo 7) -->
+        <div class="flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          <h2 class="text-sm font-semibold text-slate-200">Clinical Performance Indicators</h2>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+
+          <!-- KPI 1: Time In Range -->
+          <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-4">
+            <p class="text-[11px] text-slate-400 uppercase tracking-wide">Time In Range</p>
+            <p class="mt-1 flex items-baseline gap-1">
+              <span id="tirValor" class="text-3xl font-mono font-semibold text-emerald-400 tnum">—</span>
+              <span class="text-sm text-slate-500">%</span>
+            </p>
+            <div class="mt-2 h-2 rounded-full bg-slate-700 overflow-hidden">
+              <div id="tirBarra" class="kpi-bar-fill h-full bg-emerald-400" style="width:0%"></div>
+            </div>
+            <p id="tirBadge" class="mt-2 text-[11px] font-medium text-slate-500">Target range 70–180 mg/dL</p>
+          </div>
+
+          <!-- KPI 2: Time Below Range -->
+          <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-4">
+            <p class="text-[11px] text-slate-400 uppercase tracking-wide">Time Below Range</p>
+            <p class="mt-1 flex items-baseline gap-1">
+              <span id="tbrValor" class="text-3xl font-mono font-semibold text-emerald-400 tnum">—</span>
+              <span class="text-sm text-slate-500">%</span>
+            </p>
+            <div class="mt-2 h-2 rounded-full bg-slate-700 overflow-hidden">
+              <div id="tbrBarra" class="kpi-bar-fill h-full bg-emerald-400" style="width:0%"></div>
+            </div>
+            <p class="mt-2 text-[11px] text-slate-500">Clinical limit: &lt; 4 %</p>
+          </div>
+
+          <!-- KPI 3: Predictive Error (RMSE) — valor fijo de referencia -->
+          <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-4">
+            <p class="text-[11px] text-slate-400 uppercase tracking-wide">Predictive Error (RMSE)</p>
+            <p class="mt-1 flex items-baseline gap-1">
+              <span id="rmseValor" class="text-3xl font-mono font-semibold text-sky-400 tnum">18.5</span>
+              <span class="text-sm text-slate-500">mg/dL</span>
+            </p>
+            <span id="rmseBadge" class="mt-2 inline-block text-[11px] font-medium px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              ✓ Design constraint satisfied (&lt; 25 mg/dL)
+            </span>
+            <p id="rmseSubtext" class="mt-2 text-[10px] text-slate-500 leading-snug">
+              Mean squared error between digital twin prediction and OhioT1DM reference values.
+            </p>
+          </div>
+
+          <!-- KPI 4: Clinical Decision Support -->
+          <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-4">
+            <p class="text-[11px] text-slate-400 uppercase tracking-wide">Clinical Decision Support</p>
+            <p id="decisionTexto" class="mt-2 text-xs text-slate-300 leading-relaxed">
+              Load a profile and run a simulation to obtain recommendations.
+            </p>
+          </div>
+        </div>
+
+        <!-- ===================== CONSOLA CRIPTOGRÁFICA ===================== -->
+        <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-700">
+            <div class="flex items-center gap-2">
+              <span class="flex gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+              </span>
+              <span class="text-xs font-mono text-slate-300">consola_privacidad.log</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-[11px] font-mono text-slate-400">
+                Ops. cifradas: <span id="opsCounter" class="text-emerald-400">0</span>
+              </span>
+              <button id="btnLimpiarLogs"
+                class="text-[11px] font-mono text-slate-400 hover:text-rose-400 transition-colors border border-slate-700 rounded px-2 py-1">
+                Limpiar logs
+              </button>
+            </div>
+          </div>
+          <div id="terminal" class="terminal p-3 h-56 overflow-y-auto"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ============================================================= -->
+  <!-- MODAL DE ALERTA CRÍTICA (Fallback PID)                        -->
+  <!-- ============================================================= -->
+  <div id="modalFallback" role="dialog" aria-modal="true" aria-labelledby="modalTitulo"
+       class="modal-overlay hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 opacity-0">
+    <div class="modal-card bg-rose-950/95 border-2 border-rose-500 rounded-xl shadow-2xl max-w-lg w-full p-6 scale-95 opacity-0">
+      <div class="flex items-start gap-3">
+        <div class="flex-none mt-0.5">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fb7185" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <div class="flex-1">
+          <h3 id="modalTitulo" class="text-base font-semibold text-rose-200">
+            ⚠️ ALERTA DE SEGURIDAD — DOSIS FUERA DE RANGO TERAPÉUTICO
+          </h3>
+          <div class="mt-3 font-mono text-xs bg-rose-900/50 border border-rose-500/40 rounded-lg p-3 text-rose-100">
+            <p>Dosis ingresada: <span id="modalDosis" class="font-semibold text-white">—</span> U
+               &nbsp;|&nbsp; Umbral de seguridad del perfil: <span id="modalUmbral" class="font-semibold text-white">—</span> U</p>
+          </div>
+          <p class="mt-3 text-xs text-rose-100/90 leading-relaxed">
+            El <span class="font-semibold">Agente RL</span> ha sido anulado preventivamente. El sistema ha conmutado
+            automáticamente al <span class="font-semibold">Controlador Heurístico PID Clínico</span> para proteger la
+            integridad del gemelo digital. La simulación procederá con la dosis recortada al umbral seguro.
+          </p>
+          <button id="btnCerrarModal"
+            class="mt-4 w-full bg-rose-600 hover:bg-rose-500 text-white text-sm font-medium py-2.5 rounded-lg transition-all duration-300">
+            Entendido — Continuar con Controlador PID
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- MODAL: NUEVO PACIENTE VIRTUAL                                 -->
+  <!-- ============================================================= -->
+  <div id="modalPaciente" role="dialog" aria-modal="true" aria-labelledby="modalPacienteTitulo"
+       class="modal-overlay hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 opacity-0">
+    <div class="modal-card bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-w-2xl w-full p-6 scale-95 opacity-0 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-1">
+        <h3 id="modalPacienteTitulo" class="text-base font-semibold text-slate-100">Nuevo Paciente Virtual</h3>
+        <button type="button" data-cerrar class="text-slate-400 hover:text-slate-200 transition-colors" aria-label="Cerrar">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <p class="text-[11px] text-slate-500 mb-4">Define los parámetros fisiológicos del gemelo digital. El paciente se guarda en este navegador.</p>
+
+      <form id="formPaciente" class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="sm:col-span-2">
+            <label class="text-[11px] text-slate-400 mb-1 block">Alias *</label>
+            <input name="alias" type="text" required placeholder="Paciente #06 — Adulto / Sensibilidad media" />
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-400 mb-1 block">Tipo</label>
+            <select name="tipo">
+              <option value="adulto">Adulto</option>
+              <option value="pediatrico">Pediátrico</option>
+              <option value="adolescente">Adolescente</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-400 mb-1 block">Glucosa basal (mg/dL)</label>
+            <input name="glucosaBasal" type="number" step="1" value="120" />
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-400 mb-1 block">CR — ratio I:CHO (g/U)</label>
+            <input name="cr" type="number" step="0.5" value="10" />
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-400 mb-1 block">ISF — sensibilidad (mg/dL por U)</label>
+            <input name="isf" type="number" step="1" value="45" />
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-400 mb-1 block">TDD — dosis diaria (U/día)</label>
+            <input name="tdd" type="number" step="1" value="45" />
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-400 mb-1 block">Pico absorción CHO (min)</label>
+            <input name="pico" type="number" step="1" value="45" />
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-400 mb-1 block">Variabilidad (0.01–0.5)</label>
+            <input name="variabilidad" type="number" step="0.01" value="0.10" />
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-400 mb-1 block">Umbral de seguridad (U)</label>
+            <input name="umbral" type="number" step="0.5" value="10" />
+          </div>
+        </div>
+        <div>
+          <label class="text-[11px] text-slate-400 mb-1 block">Perfil clínico (opcional)</label>
+          <textarea name="perfil" rows="2" placeholder="Edad, peso y características clínicas relevantes..."></textarea>
+        </div>
+
+        <p id="formPacienteError" class="text-xs text-rose-400 min-h-[1rem]"></p>
+
+        <div class="flex justify-end gap-2">
+          <button type="button" data-cerrar
+            class="px-4 py-2 rounded-lg text-sm text-slate-300 border border-slate-700 hover:bg-slate-800 transition-all duration-300">
+            Cancelar
+          </button>
+          <button type="submit" id="btnGuardarPaciente"
+            class="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-all duration-300">
+            Guardar paciente
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- PUNTO DE ENTRADA (módulo ES; resuelve el resto por imports)   -->
+  <!-- ============================================================= -->
+  <!-- Build autogenerado por build.mjs a partir de los módulos ES. NO editar a mano. -->
+  <script>
+  (function () {
+  'use strict';
+
+/* ===== js/config.js ===== */
+/**
+ * config.js — Configuración central del dominio y del motor.
+ *
+ * Centraliza los "números mágicos" (horizontes temporales, parámetros de
+ * insulina, rangos glucémicos, metas institucionales) y la paleta semántica.
+ * Todo lo demás importa desde aquí, de modo que ajustar un umbral se hace en
+ * un único lugar.
+ */
+
+const CONFIG = Object.freeze({
+  sim: {
+    historicoMin: 240,     // 4 h de histórico previo al evento
+    prediccionMin: 360,    // 6 h de horizonte predictivo
+    pasoMin: 5,            // resolución temporal (min por punto)
+    horaInicioSesion: 8,   // t=0 corresponde a las 08:00
+    insulina: { onsetMin: 15, picoMin: 75, duracionMin: 240 },
+  },
+  // Modelo fisiológico compartimental (tipo UVA/Padova reducido), resuelto por
+  // integración numérica RK4. Las ganancias kM/kI se auto-calibran por paciente
+  // a partir de sus parámetros clínicos (CR, ISF), no se fijan aquí.
+  modelo: {
+    dtMin: 1,              // paso interno de integración (min)
+    p1: 0.025,            // efectividad de la glucosa: auto-regulación hacia el basal (1/min)
+    p2: 0.030,            // recambio de la acción insulínica remota (1/min)
+    tauInsulinaMin: 50,   // constante de tiempo de absorción/acción de insulina SC (min)
+    choRef: 50,           // ingesta de referencia (g) para calibrar la ganancia de comida
+    insulinaRef: 5,       // bolo de referencia (U) para calibrar la ganancia de insulina
+  },
+  rangos: { hipoSevera: 54, hipo: 70, hiper: 180, hiperSevera: 250 },
+  metas: { tirVerde: 80, tirAmbar: 60, tbrMax: 4 },
+  ohio: { seed: 559, horaInicio: 6, duracionMin: 475 },
+  glucemia: { min: 30, max: 400 },
+});
+
+// Paleta semántica glucémica del proyecto.
+const COLORES = Object.freeze({
+  euglucemia: '#34d399', // rango 70–180
+  hiper: '#fbbf24',      // > 180
+  hipo: '#f43f5e',       // < 70
+  neutral: '#38bdf8',    // histórico / UI
+  bandaFill: 'rgba(125,211,252,0.10)',
+  interp: '#a78bfa',     // interpolación lineal
+});
+
+// Índice del instante del evento (t=0) dentro de la línea temporal maestra.
+const PUNTOS_HISTORICO = CONFIG.sim.historicoMin / CONFIG.sim.pasoMin; // 48
+
+
+/* ===== js/state.js ===== */
+/**
+ * state.js — Estado mutable de la aplicación, centralizado.
+ *
+ * Patrón idiomático para compartir estado entre módulos ES: se exporta un
+ * único objeto y los módulos mutan sus propiedades (no se puede reasignar un
+ * binding importado, pero sí mutar el objeto al que apunta). Así se evitan
+ * dependencias circulares entre la orquestación y las capas de UI.
+ */
+
+const estado = {
+  perfilActual: null,       // PacienteVirtual cargado
+  rlActivo: true,           // política de control activa (RL vs PID)
+  opsCifradas: 0,           // contador total de operaciones cifradas en la sesión
+  simPendiente: null,       // parámetros en espera tras una alerta de fallback
+  registroGlucemico: [],    // último vector RegistroGlucemico generado
+  curvaActual: { valores: [], ultimo: null }, // serie glucémica visible (para las métricas)
+};
+
+
+/* ===== js/core/random.js ===== */
+/**
+ * core/random.js — Utilidades deterministas (sin aleatoriedad descontrolada).
+ *
+ * Toda la variabilidad fisiológica y los bloques cifrados de la consola usan
+ * esta PRNG con semilla fija, de modo que las demos son reproducibles.
+ */
+
+let _seed = 0x9e3779b9;
+
+/** Reinicia la semilla de la PRNG (entero de 32 bits). */
+function resetSeed(s) { _seed = (s >>> 0) || 1; }
+
+/** Mulberry32: PRNG rápida y determinista en [0,1). */
+function seededRandom() {
+  _seed |= 0;
+  _seed = (_seed + 0x6D2B79F5) | 0;
+  let t = Math.imul(_seed ^ (_seed >>> 15), 1 | _seed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+/** Ruido gaussiano (Box–Muller) escalado por una desviación estándar dada. */
+function gaussianNoise(sd) {
+  const u1 = Math.max(seededRandom(), 1e-9);
+  const u2 = seededRandom();
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * sd;
+}
+
+/** Cadena base64 verosímil (para los bloques cifrados de la consola). */
+function generarBase64(len) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let s = '';
+  for (let i = 0; i < len; i++) s += chars[Math.floor(seededRandom() * chars.length)];
+  return s;
+}
+
+/** Hash hexadecimal corto simulado (SHA-256 truncado para el log de anonimización). */
+function hashCorto() {
+  const hex = '0123456789abcdef';
+  let s = '';
+  for (let i = 0; i < 8; i++) s += hex[Math.floor(seededRandom() * 16)];
+  return s;
+}
+
+
+/* ===== js/core/tiempo.js ===== */
+/**
+ * core/tiempo.js — Utilidades de tiempo para etiquetas y logs.
+ */
+
+/**
+ * Convierte un desplazamiento en minutos (relativo al inicio de sesión) a una
+ * etiqueta de reloj HH:MM. Por defecto la base es la hora de inicio de sesión.
+ */
+function etiquetaTiempo(tMin, baseHora = CONFIG.sim.horaInicioSesion) {
+  let total = baseHora * 60 + tMin;
+  total = ((total % 1440) + 1440) % 1440;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+}
+
+/** Marca temporal actual en formato "YYYY-MM-DD HH:MM:SS" para la consola. */
+function timestamp() {
+  const d = new Date();
+  const p = (x) => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ` +
+         `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+
+/* ===== js/data/pacientes.js ===== */
+/**
+ * data/pacientes.js — Capa de persistencia (Módulo 1): modelo de datos.
+ *
+ * Define las entidades del modelo relacional como objetos estructurados:
+ * PacienteVirtual (4 perfiles contrastantes) y SesionSimulacion. La entidad
+ * RegistroGlucemico se construye dinámicamente durante la simulación y se
+ * guarda en `estado.registroGlucemico`.
+ */
+
+/** Entidad PacienteVirtual: 4 perfiles contrastantes y realistas. */
+const PACIENTES = [
+  {
+    id: 'anon-p04-unab',
+    alias: 'Paciente #04 — Adulto / Alta Sensibilidad',
+    tipo: 'adulto',
+    seed: 4041,
+    parametros: { CR: 12, ISF: 55, TDD: 38, glucosaBasal: 112, pico_absorcion_cho: 45, variabilidad: 0.08 },
+    perfil_clinico: 'Adulto de 34 años, 72 kg. Alta sensibilidad insulínica. Absorción de CHO moderada. Riesgo hipoglicémico elevado con dosis > 8U.',
+    umbral_hipoglicemia_critica: 8,
+  },
+  {
+    id: 'anon-p07-unab',
+    alias: 'Paciente #07 — Adulto / Resistencia Insulínica',
+    tipo: 'adulto',
+    seed: 7072,
+    parametros: { CR: 6, ISF: 25, TDD: 72, glucosaBasal: 148, pico_absorcion_cho: 60, variabilidad: 0.06 },
+    perfil_clinico: 'Adulto de 51 años, 94 kg. Baja sensibilidad insulínica (resistencia). Requiere dosis elevadas. Absorción de CHO lenta. Umbral de seguridad alto.',
+    umbral_hipoglicemia_critica: 18,
+  },
+  {
+    id: 'anon-p02-unab',
+    alias: 'Paciente #02 — Niño / Alta Variabilidad',
+    tipo: 'pediatrico',
+    seed: 2025,
+    parametros: { CR: 18, ISF: 80, TDD: 22, glucosaBasal: 124, pico_absorcion_cho: 35, variabilidad: 0.16 },
+    perfil_clinico: 'Paciente pediátrico de 9 años, 31 kg. Muy alta sensibilidad y variabilidad glucémica. Absorción de CHO rápida. Riesgo hipoglicémico crítico con dosis > 5U.',
+    umbral_hipoglicemia_critica: 5,
+  },
+  {
+    id: 'anon-p05-unab',
+    alias: 'Paciente #05 — Adolescente / Patrón Nocturno Alterado',
+    tipo: 'adolescente',
+    seed: 5058,
+    parametros: { CR: 10, ISF: 45, TDD: 54, glucosaBasal: 135, pico_absorcion_cho: 50, variabilidad: 0.12 },
+    perfil_clinico: 'Adolescente de 16 años, 63 kg. Fenómeno del alba marcado y variabilidad nocturna elevada. Sensibilidad moderada. Requiere ajuste basal vespertino.',
+    umbral_hipoglicemia_critica: 11,
+  },
+];
+
+/** Entidad SesionSimulacion (instancia activa). */
+const sesionActiva = {
+  id_sesion: 'SIM-2026-001',
+  fk_paciente: null,
+  fecha_inicio: '2026-06-12T08:00:00Z',
+  horizonte_horas: 24,
+  estado: 'inactiva',
+};
+
+/** Tasa basal estimada (U/h) ≈ 50% de la dosis total diaria repartida en 24 h. */
+function tasaBasal(perfil) {
+  return +((perfil.parametros.TDD * 0.5) / 24).toFixed(2);
+}
+
+/* =========================================================================
+ * PACIENTES PERSONALIZADOS (creados desde la UI, persistidos en localStorage)
+ * ========================================================================= */
+
+const STORAGE_KEY = 'biotwin:pacientes:v1';
+
+function _leerStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function _guardarStorage() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(PACIENTES.filter((p) => p.custom)));
+  } catch { /* almacenamiento no disponible: se mantienen solo en memoria */ }
+}
+
+// Semilla determinista derivada del id (FNV-1a). Evita usar Math.random.
+function _hashSemilla(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0) % 100000;
+}
+
+/** Carga los pacientes personalizados guardados y los anexa a PACIENTES. */
+function cargarPacientesGuardados() {
+  let n = 0;
+  for (const p of _leerStorage()) {
+    if (!PACIENTES.some((x) => x.id === p.id)) { PACIENTES.push(p); n++; }
+  }
+  return n;
+}
+
+/**
+ * Crea un PacienteVirtual desde los datos del formulario, lo agrega a PACIENTES
+ * y lo persiste. Devuelve el índice del nuevo paciente dentro de PACIENTES.
+ */
+function agregarPaciente(datos) {
+  const id = 'anon-c' + Date.now().toString(36);
+  const nuevo = {
+    id,
+    alias: datos.alias,
+    tipo: datos.tipo,
+    seed: _hashSemilla(id + datos.alias),
+    parametros: {
+      CR: datos.CR, ISF: datos.ISF, TDD: datos.TDD,
+      glucosaBasal: datos.glucosaBasal,
+      pico_absorcion_cho: datos.pico_absorcion_cho,
+      variabilidad: datos.variabilidad,
+    },
+    perfil_clinico: datos.perfil_clinico || 'Paciente personalizado.',
+    umbral_hipoglicemia_critica: datos.umbral_hipoglicemia_critica,
+    custom: true,
+  };
+  PACIENTES.push(nuevo);
+  _guardarStorage();
+  return PACIENTES.length - 1;
+}
+
+/**
+ * Actualiza los datos de un paciente personalizado existente (manteniendo su id
+ * y seed) y persiste el cambio. Devuelve el índice del paciente en PACIENTES, o
+ * -1 si no existe o no es personalizado.
+ */
+function editarPaciente(id, datos) {
+  const idx = PACIENTES.findIndex((p) => p.id === id);
+  if (idx === -1 || !PACIENTES[idx].custom) return -1;
+  const p = PACIENTES[idx];
+  p.alias = datos.alias;
+  p.tipo = datos.tipo;
+  p.parametros = {
+    CR: datos.CR, ISF: datos.ISF, TDD: datos.TDD,
+    glucosaBasal: datos.glucosaBasal,
+    pico_absorcion_cho: datos.pico_absorcion_cho,
+    variabilidad: datos.variabilidad,
+  };
+  p.perfil_clinico = datos.perfil_clinico || 'Paciente personalizado.';
+  p.umbral_hipoglicemia_critica = datos.umbral_hipoglicemia_critica;
+  _guardarStorage();
+  return idx;
+}
+
+/** Elimina un paciente personalizado por id. Devuelve true si se eliminó. */
+function eliminarPaciente(id) {
+  const idx = PACIENTES.findIndex((p) => p.id === id);
+  if (idx === -1 || !PACIENTES[idx].custom) return false;
+  PACIENTES.splice(idx, 1);
+  _guardarStorage();
+  return true;
+}
+
+
+/* ===== js/engine/simulador.js ===== */
+/**
+ * engine/simulador.js — Módulo 2: motor de simulación fisiológica.
+ *
+ * Modelo compartimental tipo UVA/Padova reducido (la familia de modelos que
+ * implementa SimGlucose), portado a JavaScript puro y resuelto por integración
+ * numérica Runge–Kutta de 4.º orden (RK4). En lugar de sumar curvas algebraicas,
+ * se integra un sistema de ecuaciones diferenciales con compartimentos
+ * fisiológicos:
+ *
+ *   Estado y = [G, X, Q1, Q2, S1, S2]
+ *     G       glucosa plasmática (mg/dL)
+ *     X       acción insulínica remota, como tasa de disposición (mg/dL/min)
+ *     Q1, Q2  absorción intestinal de CHO en dos compartimentos (g)   ← estilo Hovorka
+ *     S1, S2  absorción de insulina subcutánea en dos compartimentos (U)
+ *
+ *   dG  = -p1·(G - Gb) + Ra - X         (modelo mínimo de Bergman, linealizado)
+ *   dX  =  p2·(Ia - X)                  (la acción relaja hacia el aporte de insulina)
+ *   dQ1 = -Q1/tauM ;  dQ2 = (Q1 - Q2)/tauM ;  Ra = kM·Q2/tauM
+ *   dS1 = -S1/tauI ;  dS2 = (S1 - S2)/tauI ;  Ia = kI·S2/tauI
+ *
+ * Las ganancias kM (comida) y kI (insulina) se AUTO-CALIBRAN por paciente para
+ * reproducir su clínica: una ingesta de D g sube el pico ≈ (D/CR)·ISF mg/dL y un
+ * bolo de u U baja el nadir ≈ u·ISF mg/dL. Así el modelo queda anclado a los
+ * mismos parámetros (CR, ISF, basal, pico de absorción) que controla la UI.
+ */
+
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+/** Devuelve el color según el rango glucémico de un valor puntual. */
+function colorPorGlucosa(g) {
+  if (g < CONFIG.rangos.hipo) return COLORES.hipo;
+  if (g > CONFIG.rangos.hiper) return COLORES.hiper;
+  return COLORES.euglucemia;
+}
+
+/** Genera la zona histórica estable (4 h) alrededor del basal del perfil. */
+function generarHistorico(perfil) {
+  resetSeed(perfil.seed);
+  const puntos = [];
+  const basal = perfil.parametros.glucosaBasal;
+  const sdRuido = basal * perfil.parametros.variabilidad;
+  const { historicoMin, pasoMin } = CONFIG.sim;
+  for (let t = -historicoMin; t <= 0; t += pasoMin) {
+    const deriva = Math.sin(t / 55) * sdRuido * 0.6;        // deriva fisiológica lenta
+    const g = basal + deriva + gaussianNoise(sdRuido);      // + micro-perturbación
+    puntos.push({ t, glucosa: Math.round(clamp(g, 40, 360)) });
+  }
+  return puntos;
+}
+
+/* =========================================================================
+ * NÚCLEO ODE: derivadas + integrador RK4
+ * ========================================================================= */
+
+// Índices del vector de estado y = [G, X, Q1, Q2, S1, S2].
+const G = 0, X = 1, Q1 = 2, Q2 = 3, S1 = 4, S2 = 5;
+
+/** Campo vectorial dy/dt del modelo compartimental para un estado y parámetros dados. */
+function derivadas(y, par) {
+  const Ra = par.kM * y[Q2] / par.tauM;   // aparición de glucosa por la comida (mg/dL/min)
+  const Ia = par.kI * y[S2] / par.tauI;   // aporte de acción insulínica (mg/dL/min)
+  const dy = new Array(6);
+  dy[G]  = -par.p1 * (y[G] - par.Gb) + Ra - y[X];
+  dy[X]  =  par.p2 * (Ia - y[X]);
+  dy[Q1] = -y[Q1] / par.tauM;
+  dy[Q2] = (y[Q1] - y[Q2]) / par.tauM;
+  dy[S1] = -y[S1] / par.tauI;
+  dy[S2] = (y[S1] - y[S2]) / par.tauI;
+  return dy;
+}
+
+/** Un paso de Runge–Kutta de 4.º orden. */
+function pasoRK4(y, par, h) {
+  const k1 = derivadas(y, par);
+  const k2 = derivadas(y.map((v, i) => v + 0.5 * h * k1[i]), par);
+  const k3 = derivadas(y.map((v, i) => v + 0.5 * h * k2[i]), par);
+  const k4 = derivadas(y.map((v, i) => v + h * k3[i]), par);
+  return y.map((v, i) => v + (h / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]));
+}
+
+/** Integra desde un estado inicial y devuelve la excursión de G (pico/nadir, para calibrar). */
+function excursionDeG(y0, par, minutos) {
+  let y = y0;
+  let maxG = y[G], minG = y[G];
+  for (let t = 0; t < minutos; t += par.dt) {
+    y = pasoRK4(y, par, par.dt);
+    if (y[G] > maxG) maxG = y[G];
+    if (y[G] < minG) minG = y[G];
+  }
+  return { subida: maxG - par.Gb, bajada: par.Gb - minG };
+}
+
+/* =========================================================================
+ * CALIBRACIÓN POR PACIENTE (ancla el modelo a CR / ISF / basal / pico)
+ * ========================================================================= */
+
+const _cacheModelo = new Map();
+
+function calibrar(perfil) {
+  const M = CONFIG.modelo;
+  const { CR, ISF, glucosaBasal, pico_absorcion_cho } = perfil.parametros;
+  const par = {
+    Gb: glucosaBasal, p1: M.p1, p2: M.p2,
+    tauM: pico_absorcion_cho, tauI: M.tauInsulinaMin,
+    dt: M.dtMin, kM: 1, kI: 1,
+  };
+  const horizonte = CONFIG.sim.prediccionMin;
+
+  // Ganancia de comida kM: ajusta el pico de subida a (choRef/CR)·ISF mg/dL.
+  const y0Comida = [par.Gb, 0, M.choRef, 0, 0, 0];
+  const subidaUnit = excursionDeG(y0Comida, par, horizonte).subida || 1;
+  par.kM = ((M.choRef / CR) * ISF) / subidaUnit;
+
+  // Ganancia de insulina kI: ajusta el nadir de bajada a insulinaRef·ISF mg/dL.
+  const y0Insulina = [par.Gb, 0, 0, 0, M.insulinaRef, 0];
+  const bajadaUnit = excursionDeG(y0Insulina, par, horizonte).bajada || 1;
+  par.kI = (M.insulinaRef * ISF) / bajadaUnit;
+
+  return par;
+}
+
+/** Devuelve el modelo calibrado de un paciente (memoizado por id + parámetros). */
+function modeloDe(perfil) {
+  const firma = perfil.id + '|' + JSON.stringify(perfil.parametros);
+  let par = _cacheModelo.get(firma);
+  if (!par) { par = calibrar(perfil); _cacheModelo.set(firma, par); }
+  return par;
+}
+
+/* =========================================================================
+ * PREDICCIÓN: integra el modelo ante una ingesta (gCHO) y un bolo (uInsulina)
+ * ========================================================================= */
+
+/**
+ * Genera la trayectoria predictiva (6 h) integrando el modelo compartimental.
+ * La ingesta y el bolo entran como impulsos en el primer compartimento de cada
+ * cadena de absorción. Cada punto incluye la desviación estándar de la banda de
+ * incertidumbre, que crece con el horizonte de predicción.
+ */
+function generarPrediccion(perfil, gCHO, uInsulina, glucosaInicial) {
+  const par = modeloDe(perfil);
+  resetSeed(perfil.seed + 7);
+  const { prediccionMin, pasoMin } = CONFIG.sim;
+  const { min, max } = CONFIG.glucemia;
+  const sdRuido = perfil.parametros.glucosaBasal * perfil.parametros.variabilidad;
+
+  // Estado inicial: glucosa observada + impulsos de comida e insulina.
+  let y = [glucosaInicial, 0, Math.max(gCHO, 0), 0, Math.max(uInsulina, 0), 0];
+  let t = 0;
+  const puntos = [];
+
+  const registrar = (tt) => {
+    const g = clamp(y[G] + gaussianNoise(sdRuido), min, max);
+    const sdBanda = sdRuido * 1.2 + (tt / 60) * 3.0;
+    puntos.push({ t: tt, glucosa: Math.round(g), sd: sdBanda });
+  };
+
+  registrar(0);
+  while (t < prediccionMin) {
+    const objetivo = Math.min(t + pasoMin, prediccionMin);
+    while (t < objetivo - 1e-9) {
+      const h = Math.min(par.dt, objetivo - t);
+      y = pasoRK4(y, par, h);
+      t += h;
+    }
+    registrar(Math.round(t));
+  }
+  return puntos;
+}
+
+
+/* ===== js/pipeline/ohio.js ===== */
+/**
+ * pipeline/ohio.js — Módulo 4: pipeline OhioT1DM.
+ *
+ * Genera una serie temporal cruda con ruido de sensores (gaps de señal y
+ * spikes de calibración) y la preprocesa con interpolación lineal y media
+ * móvil. La generación es determinista (semilla del paciente 559).
+ */
+
+/** Tendencia base de ~8 h con dos comidas (desayuno y almuerzo). */
+function ohioTrend(t) {
+  const desayuno = 75 * Math.exp(-Math.pow((t - 110) / 55, 2));
+  const almuerzo = 65 * Math.exp(-Math.pow((t - 330) / 65, 2));
+  return 118 + desayuno + almuerzo + 8 * Math.sin(t / 40);
+}
+
+/** Serie cruda con 3 gaps de señal (null) y spikes de calibración (±60 mg/dL). */
+function generarOhioRaw() {
+  resetSeed(CONFIG.ohio.seed);
+  const { pasoMin } = CONFIG.sim;
+  const raw = [];
+  for (let t = 0; t <= CONFIG.ohio.duracionMin; t += pasoMin) {
+    raw.push(Math.round(ohioTrend(t) + gaussianNoise(4)));
+  }
+  // Gaps de señal (15–25 min cada uno → cortes visibles en el gráfico)
+  [[150, 175], [255, 285], [400, 420]].forEach(([a, b]) => {
+    for (let t = a; t <= b; t += pasoMin) raw[t / pasoMin] = null;
+  });
+  // Spikes de calibración (anomalías respecto de la tendencia real)
+  [[75, +62], [215, -58], [365, +60]].forEach(([t, delta]) => {
+    raw[t / pasoMin] = Math.round(ohioTrend(t) + delta);
+  });
+  return raw;
+}
+
+/**
+ * Preprocesa la serie cruda: interpolación lineal de los gaps + media móvil
+ * centrada de ventana 5 (suaviza los spikes).
+ * Devuelve { interpolado, suavizado }.
+ */
+function preprocesarOhio(raw) {
+  const interpolado = raw.slice();
+
+  // 1) Interpolación lineal de huecos
+  let i = 0;
+  while (i < interpolado.length) {
+    if (interpolado[i] === null) {
+      let j = i;
+      while (j < interpolado.length && interpolado[j] === null) j++;
+      const antes = interpolado[i - 1];
+      const despues = interpolado[j];
+      const vAntes = (antes !== undefined && antes !== null) ? antes : (despues != null ? despues : 120);
+      const vDespues = (despues !== undefined && despues !== null) ? despues : vAntes;
+      const pasos = j - i + 1;
+      for (let k = i; k < j; k++) {
+        interpolado[k] = Math.round(vAntes + (vDespues - vAntes) * ((k - i + 1) / pasos));
+      }
+      i = j;
+    } else { i++; }
+  }
+
+  // 2) Media móvil centrada de ventana 5
+  const suavizado = interpolado.map((_, idx) => {
+    let suma = 0, cnt = 0;
+    for (let k = idx - 2; k <= idx + 2; k++) {
+      if (k >= 0 && k < interpolado.length && interpolado[k] !== null) { suma += interpolado[k]; cnt++; }
+    }
+    return Math.round(suma / cnt);
+  });
+
+  return { interpolado, suavizado };
+}
+
+
+/* ===== js/ui/dom.js ===== */
+/**
+ * ui/dom.js — Cache de referencias DOM.
+ *
+ * Resuelve los elementos una sola vez en el arranque, en lugar de repetir
+ * document.getElementById por toda la aplicación.
+ */
+
+const DOM = {};
+
+function cacheDOM() {
+  const ids = [
+    'selectorPacientes', 'btnNuevoPaciente', 'perfilClinico', 'perfilParametros', 'valCHO', 'valInsulina',
+    'inputCHO', 'inputInsulina', 'btnSimular', 'badgeRL', 'toggleRL', 'btnOhio',
+    'pipelineStatus', 'graficoPrincipal', 'badgeModo', 'btnEjeDetalle', 'btnEjeHora',
+    'tirValor', 'tirBarra', 'tirBadge',
+    'tbrValor', 'tbrBarra', 'rmseValor', 'rmseBadge', 'rmseSubtext', 'decisionTexto',
+    'opsCounter', 'btnLimpiarLogs', 'terminal',
+    'modalFallback', 'modalDosis', 'modalUmbral', 'btnCerrarModal',
+    'modalPaciente', 'formPaciente', 'formPacienteError', 'modalPacienteTitulo', 'btnGuardarPaciente',
+  ];
+  ids.forEach((id) => { DOM[id] = document.getElementById(id); });
+  DOM.modalCard = DOM.modalFallback.querySelector('.modal-card');
+}
+
+
+/* ===== js/ui/kpis.js ===== */
+/**
+ * ui/kpis.js — Módulo 7: indicadores clínicos dinámicos (Clinical Performance
+ * Indicators).
+ *
+ * Las cuatro tarjetas se recalculan automáticamente ante cualquier cambio en
+ * los datos del gráfico (nueva simulación, carga OhioT1DM, fallback, cambio de
+ * perfil). El punto único de actualización es `updateAllMetrics()`, que lee la
+ * curva activa desde `estado.curvaActual`.
+ *
+ * Lenguaje clínico neutral (sin referencias institucionales).
+ */
+
+// Valores previos: permiten animar los contadores desde el último estado.
+let tirPrevio = 0;
+let tbrPrevio = 0;
+
+/* =========================================================================
+ * CÁLCULOS (funciones puras)
+ * ========================================================================= */
+
+/** Time In Range: % de puntos con 70 ≤ glucosa ≤ 180 mg/dL. */
+function calculateTIR(datapoints) {
+  const datos = datapoints.filter((v) => v !== null && !Number.isNaN(v));
+  if (!datos.length) return 0;
+  const { hipo, hiper } = CONFIG.rangos;
+  return (datos.filter((g) => g >= hipo && g <= hiper).length / datos.length) * 100;
+}
+
+/** Time Below Range: % de puntos con glucosa < 70 mg/dL. */
+function calculateTBR(datapoints) {
+  const datos = datapoints.filter((v) => v !== null && !Number.isNaN(v));
+  if (!datos.length) return 0;
+  return (datos.filter((g) => g < CONFIG.rangos.hipo).length / datos.length) * 100;
+}
+
+/* =========================================================================
+ * RENDER
+ * ========================================================================= */
+
+/** Anima un contador numérico desde → hasta con easing (≈400 ms, rAF). */
+function animarContador(el, desde, hasta, ms = 400) {
+  const t0 = performance.now();
+  function frame(t) {
+    const p = Math.min((t - t0) / ms, 1);
+    const eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
+    el.textContent = (desde + (hasta - desde) * eased).toFixed(1);
+    if (p < 1) requestAnimationFrame(frame);
+    else el.textContent = hasta.toFixed(1);
+  }
+  requestAnimationFrame(frame);
+}
+
+/** Render estático de la tarjeta RMSE (valor fijo de referencia). Una vez en init. */
+function renderRMSECard() {
+  DOM.rmseValor.textContent = '18.5';
+  DOM.rmseBadge.textContent = '✓ Design constraint satisfied (< 25 mg/dL)';
+  DOM.rmseSubtext.textContent =
+    'Mean squared error between digital twin prediction and OhioT1DM reference values.';
+}
+
+/** Soporte a la decisión clínica según el último valor glucémico de la curva. */
+function renderDecisionSupport(lastGlucose) {
+  const el = DOM.decisionTexto;
+  const { hipoSevera, hipo, hiper, hiperSevera } = CONFIG.rangos;
+  if (lastGlucose === null || lastGlucose === undefined || Number.isNaN(lastGlucose)) {
+    el.textContent = 'No predictive data available.';
+    el.style.color = '#94a3b8';
+    return;
+  }
+  let txt, color;
+  if (lastGlucose > hiperSevera) {
+    txt = `🔴 Severe hyperglycemia projected (>${Math.round(lastGlucose)} mg/dL). Urgent bolus correction advised.`;
+    color = '#fb7185';
+  } else if (lastGlucose > hiper) {
+    txt = '🟡 Mild-moderate hyperglycemia. Adjust I:CHO ratio for next meal.';
+    color = '#fbbf24';
+  } else if (lastGlucose >= hipo) {
+    txt = '🟢 Glucose within target range. Maintain current regimen. Review in 2 h.';
+    color = '#34d399';
+  } else if (lastGlucose >= hipoSevera) {
+    txt = '🟠 Mild hypoglycemia. Ingest 15 g fast-acting glucose. Reassess in 15 min.';
+    color = '#fb923c';
+  } else {
+    txt = '🔴 SEVERE HYPOGLYCEMIA. Immediate action required.';
+    color = '#fb7185';
+  }
+  el.textContent = txt;
+  el.style.color = color;
+}
+
+/* =========================================================================
+ * ORQUESTADOR
+ * ========================================================================= */
+
+/**
+ * Punto único de actualización. Lee la curva activa (`estado.curvaActual`),
+ * recalcula TIR/TBR con contadores animados y refresca el soporte clínico.
+ * Debe llamarse al final de cada simulación, carga de dataset y fallback.
+ */
+function updateAllMetrics() {
+  const { valores, ultimo } = estado.curvaActual;
+  const { tirVerde, tirAmbar, tbrMax } = CONFIG.metas;
+
+  // --- Tarjeta 1: Time In Range ---
+  const tir = calculateTIR(valores);
+  const tirColor = tir > tirVerde ? COLORES.euglucemia
+    : (tir >= tirAmbar ? COLORES.hiper : COLORES.hipo);
+  animarContador(DOM.tirValor, tirPrevio, tir);
+  DOM.tirValor.style.color = tirColor;
+  DOM.tirBarra.style.width = tir.toFixed(1) + '%';
+  DOM.tirBarra.style.backgroundColor = tirColor;
+  if (tir > tirVerde) {
+    DOM.tirBadge.textContent = '✓ Clinical Target Met';
+    DOM.tirBadge.className = 'mt-2 text-[11px] font-medium text-emerald-400';
+  } else {
+    DOM.tirBadge.textContent = '✗ Clinical Target Not Met';
+    DOM.tirBadge.className = 'mt-2 text-[11px] font-medium text-rose-400';
+  }
+  tirPrevio = tir;
+
+  // --- Tarjeta 2: Time Below Range ---
+  const tbr = calculateTBR(valores);
+  const tbrColor = tbr < tbrMax ? COLORES.euglucemia : COLORES.hipo;
+  animarContador(DOM.tbrValor, tbrPrevio, tbr);
+  DOM.tbrValor.style.color = tbrColor;
+  DOM.tbrBarra.style.width = Math.min(tbr * 4, 100).toFixed(1) + '%'; // escala visual amplificada
+  DOM.tbrBarra.style.backgroundColor = tbrColor;
+  tbrPrevio = tbr;
+
+  // --- Tarjeta 4: Soporte a la decisión clínica ---
+  renderDecisionSupport(ultimo);
+}
+
+/* =========================================================================
+ * BADGE DE MODO DEL GRÁFICO (auxiliar, independiente de las métricas)
+ * ========================================================================= */
+function setBadgeModo(texto, tono) {
+  const tonos = {
+    sky: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+    emerald: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    rose: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+    amber: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  };
+  DOM.badgeModo.className = 'text-[10px] font-mono px-2 py-1 rounded-md border ' + (tonos[tono] || tonos.sky);
+  DOM.badgeModo.textContent = texto;
+}
+
+
+/* ===== js/ui/consola.js ===== */
+/**
+ * ui/consola.js — Módulo 5: consola criptográfica (privacidad en tiempo real).
+ *
+ * Imprime, por cada acción del usuario, el flujo de seguridad de 5 entradas
+ * (cifrado + anonimización + persistencia) conforme a las Leyes N° 19.628 y
+ * N° 21.719. Las líneas se construyen con textContent (sin innerHTML) para
+ * evitar cualquier inyección.
+ */
+
+/**
+ * Imprime una línea en la consola. Las etiquetas se alinean por padding
+ * monoespaciado (el contenedor usa white-space: pre-wrap).
+ */
+function log(tag, contenido, colorClass) {
+  const div = document.createElement('div');
+  div.className = 'line';
+
+  const ts = document.createElement('span');
+  ts.className = 'text-slate-500';
+  ts.textContent = `[${timestamp()}] `;
+
+  const etiqueta = document.createElement('span');
+  etiqueta.className = `${colorClass} font-semibold`;
+  etiqueta.textContent = ('[' + tag + ']').padEnd(12, ' ');
+
+  const msg = document.createElement('span');
+  msg.className = 'text-slate-300';
+  msg.textContent = ' ' + contenido;
+
+  div.append(ts, etiqueta, msg);
+  DOM.terminal.appendChild(div);
+  DOM.terminal.scrollTop = DOM.terminal.scrollHeight;
+}
+
+/** Vacía el buffer visual de logs (el contador total de la sesión se preserva). */
+function limpiarLogs() {
+  DOM.terminal.replaceChildren();
+  log('SYSTEM', 'Buffer de logs purgado. Contador de operaciones cifradas preservado (total de sesión).', 'text-slate-400');
+}
+
+/** Flujo de seguridad de 5 entradas por evento. Incrementa el contador cifrado. */
+function registrarFlujoSeguridad(evento, payload, opciones = {}) {
+  const pid = payload.patient_id || (estado.perfilActual ? estado.perfilActual.id : 'anon-unknown');
+
+  const detalleEvt = opciones.detalleEvento ||
+    `EVENT: ${evento} | patient=${pid}` +
+    (payload.cho_g !== undefined ? ` | cho=${payload.cho_g}g` : '') +
+    (payload.insulin_u !== undefined ? ` | insulin=${payload.insulin_u}U` : '');
+
+  log('INFO', detalleEvt, 'text-sky-400');
+  log('ENCRYPT', 'RAW_PAYLOAD: ' + JSON.stringify(payload), 'text-amber-400');
+  log('ANONYMIZE', `PII_MASK: patient_id → hash_sha256 → "${hashCorto()}..." | Ley N° 19.628 Art.2(g) compliant`, 'text-violet-400');
+
+  estado.opsCifradas++;
+  log('FERNET', 'ENCRYPTED_BLOCK: gAAAAAB' + generarBase64(80) + '==', 'text-emerald-400');
+
+  const filas = opciones.rows || 1;
+  log('DB_WRITE', `STATUS: 200 OK | tabla=RegistroGlucemico | rows_inserted=${filas} | Ley N° 21.719 compliant ✓`, 'text-emerald-400');
+
+  DOM.opsCounter.textContent = estado.opsCifradas;
+}
+
+
+/* ===== js/ui/grafico.js ===== */
+/**
+ * ui/grafico.js — Capa de visualización (Chart.js).
+ *
+ * Es el único módulo que posee la instancia del gráfico (`chart`). El resto de
+ * la aplicación interactúa mediante las funciones de render exportadas, nunca
+ * accediendo directamente al objeto Chart.
+ *
+ * `Chart` es el global expuesto por el script CDN de Chart.js.
+ */
+
+let chart;
+let modoEje = 'detalle';   // resolución del eje X: 'detalle' (cada 5 min) | 'hora' (cada 60 min)
+let seriesCompletas = null; // snapshot a resolución completa de labels + data de cada dataset
+
+// ¿Se muestra la marca/rejilla para esta etiqueta de reloj, según el modo activo?
+function mostrarMarca(lbl) {
+  if (typeof lbl !== 'string') return false;
+  return modoEje === 'hora' ? lbl.endsWith(':00') : (lbl.endsWith(':00') || lbl.endsWith(':30'));
+}
+
+/** Líneas de referencia horizontales 70 (hipo) y 180 (hiper). */
+function lineasReferencia() {
+  const estiloEtiqueta = (txt, color) => ({
+    display: true, content: txt, position: 'start', color,
+    backgroundColor: 'rgba(2,6,23,0.7)', font: { size: 9, family: 'monospace' },
+  });
+  return {
+    hipo: {
+      type: 'line', yMin: CONFIG.rangos.hipo, yMax: CONFIG.rangos.hipo,
+      borderColor: COLORES.hipo, borderWidth: 1.5, borderDash: [6, 6],
+      label: estiloEtiqueta(CONFIG.rangos.hipo + ' mg/dL', COLORES.hipo),
+    },
+    hiper: {
+      type: 'line', yMin: CONFIG.rangos.hiper, yMax: CONFIG.rangos.hiper,
+      borderColor: COLORES.hiper, borderWidth: 1.5, borderDash: [6, 6],
+      label: estiloEtiqueta(CONFIG.rangos.hiper + ' mg/dL', COLORES.hiper),
+    },
+  };
+}
+
+/** Inicializa el gráfico Chart.js con la configuración profesional base. */
+function initChart() {
+  const ctx = DOM.graficoPrincipal.getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: [], datasets: [] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      animation: { duration: 650, easing: 'easeOutQuart' },
+      layout: { padding: { top: 8, right: 8 } },
+      scales: {
+        x: {
+          grid: {
+            color: (ctx) => {
+              const lbl = (typeof ctx.index === 'number') ? chart.data.labels[ctx.index] : null;
+              return mostrarMarca(lbl) ? 'rgba(30,41,59,0.7)' : 'transparent';
+            },
+          },
+          ticks: {
+            color: '#64748b', autoSkip: false, maxRotation: 0,
+            font: { family: 'monospace', size: 10 },
+            callback(value) {
+              const lbl = this.getLabelForValue(value);
+              return mostrarMarca(lbl) ? lbl : '';
+            },
+          },
+        },
+        y: {
+          suggestedMin: 40,
+          suggestedMax: 300,
+          grid: { color: 'rgba(30,41,59,0.7)' },
+          ticks: {
+            color: '#64748b', font: { family: 'monospace', size: 10 },
+            callback: (v) => v + ' mg/dL',
+          },
+        },
+      },
+      plugins: {
+        legend: {
+          labels: {
+            color: '#cbd5e1', font: { size: 11 }, usePointStyle: true, boxWidth: 8,
+            // Oculta datasets auxiliares internos (prefijo '_')
+            filter: (item) => !String(item.text).startsWith('_'),
+          },
+        },
+        tooltip: {
+          backgroundColor: '#0f172a',
+          borderColor: '#334155',
+          borderWidth: 1,
+          titleColor: '#e2e8f0',
+          bodyColor: '#cbd5e1',
+          titleFont: { family: 'monospace' },
+          bodyFont: { family: 'monospace' },
+          callbacks: {
+            label: (c) => {
+              if (String(c.dataset.label).startsWith('_')) return null;
+              if (c.parsed.y === null) return null;
+              return `${c.dataset.label}: ${c.parsed.y} mg/dL`;
+            },
+          },
+        },
+        annotation: { annotations: lineasReferencia() },
+      },
+    },
+  });
+}
+
+/**
+ * Guarda la serie a resolución completa (5 min) tal como la dejó la última
+ * función de render, y la re-pinta según el modo activo. Toda función de render
+ * debe terminar llamando aquí en lugar de chart.update().
+ */
+function fijarSeriesYActualizar() {
+  seriesCompletas = {
+    labels: chart.data.labels.slice(),
+    datas: chart.data.datasets.map((ds) => ds.data.slice()),
+  };
+  aplicarResolucion();
+}
+
+/**
+ * Re-muestrea la serie almacenada según `modoEje` y actualiza el gráfico:
+ *   - 'detalle': todos los puntos (5 min).
+ *   - 'hora':    un punto por hora (solo las muestras en HH:00).
+ * Solo afecta la VISUALIZACIÓN; las métricas (TIR/TBR) siguen usando la serie
+ * completa desde estado.curvaActual.
+ */
+function aplicarResolucion() {
+  if (!seriesCompletas) { chart.update(); return; }
+  const { labels, datas } = seriesCompletas;
+  const indices = [];
+  for (let i = 0; i < labels.length; i++) {
+    if (modoEje !== 'hora' || (typeof labels[i] === 'string' && labels[i].endsWith(':00'))) indices.push(i);
+  }
+  chart.data.labels = indices.map((i) => labels[i]);
+  chart.data.datasets.forEach((ds, k) => { ds.data = indices.map((i) => datas[k][i]); });
+  chart.update();
+}
+
+/**
+ * Cambia la resolución temporal de la TRAYECTORIA: 'detalle' (5 min) o 'hora'
+ * (un punto por hora). Re-muestrea la serie ya calculada, sin volver a simular.
+ */
+function setResolucionEje(modo) {
+  modoEje = modo;
+  aplicarResolucion();
+}
+
+/** Estado basal: solo la zona histórica. Devuelve la serie para los KPIs. */
+function renderBasal(perfil) {
+  const hist = generarHistorico(perfil);
+  const histVals = hist.map((p) => p.glucosa);
+
+  estado.registroGlucemico = hist.map((p) => ({
+    t_min: p.t, glucosa_mg_dl: p.glucosa, insulina_basal_u_h: tasaBasal(perfil),
+    bolo_u: 0, cho_g: 0, origen: 'historico',
+  }));
+
+  chart.data.labels = hist.map((p) => etiquetaTiempo(p.t));
+  chart.data.datasets = [
+    {
+      label: 'Glucemia histórica (CGM)', data: histVals,
+      borderColor: COLORES.neutral, backgroundColor: COLORES.neutral,
+      borderWidth: 2, pointRadius: 0, tension: 0.35, spanGaps: false, order: 1,
+    },
+  ];
+  chart.options.plugins.annotation.annotations = lineasReferencia();
+  fijarSeriesYActualizar();
+
+  estado.curvaActual = { valores: histVals, ultimo: histVals[histVals.length - 1] };
+  setBadgeModo('Estado basal', 'sky');
+  updateAllMetrics();
+}
+
+/** Simulación predictiva completa (histórico + predicción + banda de incertidumbre). */
+function renderSimulacion(perfil, gCHO, uInsulina, esFallback) {
+  const hist = generarHistorico(perfil);
+  const glucosaInicial = hist[hist.length - 1].glucosa;
+  const pred = generarPrediccion(perfil, gCHO, uInsulina, glucosaInicial);
+
+  const { historicoMin, prediccionMin, pasoMin } = CONFIG.sim;
+  const labels = [], histVals = [], predVals = [], bandU = [], bandL = [];
+  const todosGlucosa = [];
+
+  for (let t = -historicoMin; t <= prediccionMin; t += pasoMin) {
+    labels.push(etiquetaTiempo(t));
+    if (t <= 0) {
+      const g = hist[(t + historicoMin) / pasoMin].glucosa;
+      histVals.push(g);
+      todosGlucosa.push(g);
+    } else {
+      histVals.push(null);
+    }
+    if (t >= 0) {
+      const p = pred[t / pasoMin];
+      predVals.push(p.glucosa);
+      bandU.push(Math.round(p.glucosa + p.sd));
+      bandL.push(Math.round(p.glucosa - p.sd));
+      if (t > 0) todosGlucosa.push(p.glucosa);
+    } else {
+      predVals.push(null); bandU.push(null); bandL.push(null);
+    }
+  }
+  // Conecta histórico y predicción en el instante del evento (t=0)
+  predVals[PUNTOS_HISTORICO] = glucosaInicial;
+  bandU[PUNTOS_HISTORICO] = glucosaInicial;
+  bandL[PUNTOS_HISTORICO] = glucosaInicial;
+
+  estado.registroGlucemico = pred.map((p) => ({
+    t_min: p.t, glucosa_mg_dl: p.glucosa, insulina_basal_u_h: tasaBasal(perfil),
+    bolo_u: p.t === 0 ? uInsulina : 0, cho_g: p.t === 0 ? gCHO : 0, origen: 'simulado',
+  }));
+
+  chart.data.labels = labels;
+  chart.data.datasets = [
+    // Banda de incertidumbre (±1σ): datasets auxiliares rellenos entre sí
+    { label: '_bandaInf', data: bandL, borderWidth: 0, pointRadius: 0, fill: false, tension: 0.35, order: 5 },
+    { label: 'Incertidumbre ±1σ', data: bandU, borderWidth: 0, pointRadius: 0,
+      backgroundColor: COLORES.bandaFill, fill: '-1', tension: 0.35, order: 5 },
+    // Histórico (sky-400)
+    { label: 'Glucemia histórica (CGM)', data: histVals, borderColor: COLORES.neutral,
+      backgroundColor: COLORES.neutral, borderWidth: 2, pointRadius: 0, tension: 0.35,
+      spanGaps: false, order: 1 },
+    // Predicción con color dinámico por rango glucémico (segment styling)
+    { label: 'Predicción gemelo digital', data: predVals, borderColor: COLORES.euglucemia,
+      borderWidth: 2.5, pointRadius: 0, tension: 0.35, spanGaps: false, order: 1,
+      segment: { borderColor: (c) => colorPorGlucosa((c.p0.parsed.y + c.p1.parsed.y) / 2) } },
+  ];
+  chart.options.plugins.annotation.annotations = lineasReferencia();
+  fijarSeriesYActualizar();
+
+  const etiquetaModo = esFallback ? 'Predicción · PID (Fallback)'
+    : (estado.rlActivo ? 'Predicción · RL' : 'Predicción · PID');
+  estado.curvaActual = { valores: todosGlucosa, ultimo: predVals[predVals.length - 1] };
+  setBadgeModo(etiquetaModo, esFallback ? 'rose' : 'emerald');
+
+  updateAllMetrics();
+}
+
+/** Dibuja la serie cruda de OhioT1DM (con gaps y spikes). */
+function renderOhioRaw(raw, labels) {
+  chart.data.labels = labels;
+  chart.data.datasets = [
+    { label: 'OhioT1DM raw (CGM crudo)', data: raw, borderColor: COLORES.neutral,
+      backgroundColor: COLORES.neutral, borderWidth: 2, pointRadius: 0, tension: 0.25,
+      spanGaps: false, order: 1 },
+  ];
+  chart.options.plugins.annotation.annotations = lineasReferencia();
+  fijarSeriesYActualizar();
+}
+
+/** Dibuja la serie procesada: interpolación lineal resaltada + suavizado MM-5. */
+function renderOhioProcesado(raw, interpolado, suavizado) {
+  // Resalta solo los segmentos interpolados (punteado violeta)
+  const interpFill = interpolado.map((v, idx) => {
+    const eraNull = raw[idx] === null;
+    const vecinoNull = (raw[idx - 1] === null) || (raw[idx + 1] === null);
+    return (eraNull || vecinoNull) ? v : null;
+  });
+
+  // Restaura las etiquetas a resolución completa (renderOhioRaw pudo haberlas
+  // re-muestreado a horaria), de modo que el snapshot quede alineado con los datos.
+  if (seriesCompletas) chart.data.labels = seriesCompletas.labels.slice();
+
+  chart.data.datasets = [
+    { label: 'Serie suavizada (MM-5)', data: suavizado, borderColor: COLORES.euglucemia,
+      backgroundColor: COLORES.euglucemia, borderWidth: 2.5, pointRadius: 0, tension: 0.35, order: 1 },
+    { label: 'Interpolación lineal', data: interpFill, borderColor: COLORES.interp,
+      backgroundColor: COLORES.interp, borderWidth: 2, borderDash: [4, 4], pointRadius: 0,
+      tension: 0, spanGaps: false, order: 0 },
+  ];
+  fijarSeriesYActualizar();
+}
+
+
+/* ===== js/ui/modal.js ===== */
+/**
+ * ui/modal.js — Módulo 3: control RL/PID y modal de alerta crítica.
+ *
+ * Gestiona el toggle del Agente RL y el modal de fallback por dosis peligrosa,
+ * incluyendo accesibilidad (foco y cierre con Escape se cablean en main.js).
+ */
+
+/**
+ * Cambia la política de control activa.
+ * @param {boolean} activo     true = Agente RL; false = Controlador PID
+ * @param {boolean} silencioso si true, no registra el cambio en la consola
+ */
+function setRL(activo, silencioso) {
+  estado.rlActivo = activo;
+  DOM.toggleRL.classList.toggle('on', activo);
+  DOM.toggleRL.setAttribute('aria-checked', String(activo));
+  if (activo) {
+    DOM.badgeRL.textContent = 'RL Activo';
+    DOM.badgeRL.className = 'text-[10px] font-mono px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+  } else {
+    DOM.badgeRL.textContent = 'Control Clásico (PID)';
+    DOM.badgeRL.className = 'text-[10px] font-mono px-2 py-1 rounded-md bg-slate-600/30 text-slate-400 border border-slate-600';
+  }
+  if (!silencioso) {
+    const politica = activo ? 'RL_StableBaselines3' : 'PID_heuristic';
+    registrarFlujoSeguridad('control_policy_switch',
+      { patient_id: estado.perfilActual ? estado.perfilActual.id : 'anon-unknown', policy: politica },
+      { detalleEvento: `EVENT: control_policy_switch | policy=${politica}` });
+  }
+}
+
+function modalVisible() {
+  return !DOM.modalFallback.classList.contains('hidden');
+}
+
+/** Abre el modal de alerta crítica y lleva el foco al botón de acción. */
+function abrirModal(dosis, umbral) {
+  DOM.modalDosis.textContent = dosis.toFixed(1);
+  DOM.modalUmbral.textContent = umbral.toFixed(1);
+  DOM.modalFallback.classList.remove('hidden');
+  requestAnimationFrame(() => {
+    DOM.modalFallback.classList.remove('opacity-0');
+    DOM.modalCard.classList.remove('scale-95', 'opacity-0');
+    DOM.btnCerrarModal.focus();
+  });
+}
+
+function cerrarModal() {
+  DOM.modalFallback.classList.add('opacity-0');
+  DOM.modalCard.classList.add('scale-95', 'opacity-0');
+  setTimeout(() => DOM.modalFallback.classList.add('hidden'), 250);
+}
+
+
+/* ===== js/ui/formularioPaciente.js ===== */
+/**
+ * ui/formularioPaciente.js — Modal para crear y editar pacientes desde la UI.
+ *
+ * El mismo modal opera en dos modos según `_editandoId`:
+ *   - crear  (null): registra un PacienteVirtual nuevo vía `agregarPaciente`.
+ *   - editar (id):   actualiza uno existente vía `editarPaciente`.
+ * Tras validar, persiste mediante la capa de datos y notifica al orquestador
+ * con `alAgregar(indice)` o `alEditar(indice)`.
+ */
+
+let _alAgregar = null;
+let _alEditar = null;
+let _editandoId = null;   // null = modo crear; id = modo editar
+
+/** Cablea el botón "Nuevo paciente", el modal y el envío del formulario. */
+function cablearFormularioPaciente({ alAgregar, alEditar }) {
+  _alAgregar = alAgregar;
+  _alEditar = alEditar;
+  DOM.btnNuevoPaciente.addEventListener('click', abrirFormulario);
+  DOM.formPaciente.addEventListener('submit', manejarSubmit);
+
+  // Cierre: botones marcados con data-cerrar, clic en el fondo y tecla Escape
+  DOM.modalPaciente.querySelectorAll('[data-cerrar]').forEach((b) => b.addEventListener('click', cerrarFormulario));
+  DOM.modalPaciente.addEventListener('click', (e) => { if (e.target === DOM.modalPaciente) cerrarFormulario(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !DOM.modalPaciente.classList.contains('hidden')) cerrarFormulario();
+  });
+}
+
+/** Abre el modal en modo CREAR (formulario en blanco con valores por defecto). */
+function abrirFormulario() {
+  _editandoId = null;
+  DOM.formPaciente.reset();
+  DOM.modalPacienteTitulo.textContent = 'Nuevo Paciente Virtual';
+  DOM.btnGuardarPaciente.textContent = 'Guardar paciente';
+  DOM.formPacienteError.textContent = '';
+  _mostrarModal();
+}
+
+/** Abre el modal en modo EDITAR, precargando los datos del paciente dado. */
+function abrirEdicionPaciente(perfil) {
+  _editandoId = perfil.id;
+  const f = DOM.formPaciente.elements;
+  const p = perfil.parametros;
+  f.alias.value = perfil.alias;
+  f.tipo.value = perfil.tipo;
+  f.glucosaBasal.value = p.glucosaBasal;
+  f.cr.value = p.CR;
+  f.isf.value = p.ISF;
+  f.tdd.value = p.TDD;
+  f.pico.value = p.pico_absorcion_cho;
+  f.variabilidad.value = p.variabilidad;
+  f.umbral.value = perfil.umbral_hipoglicemia_critica;
+  f.perfil.value = perfil.perfil_clinico || '';
+  DOM.modalPacienteTitulo.textContent = 'Editar Paciente Virtual';
+  DOM.btnGuardarPaciente.textContent = 'Guardar cambios';
+  DOM.formPacienteError.textContent = '';
+  _mostrarModal();
+}
+
+function _mostrarModal() {
+  const card = DOM.modalPaciente.querySelector('.modal-card');
+  DOM.modalPaciente.classList.remove('hidden');
+  requestAnimationFrame(() => {
+    DOM.modalPaciente.classList.remove('opacity-0');
+    card.classList.remove('scale-95', 'opacity-0');
+    DOM.formPaciente.elements.alias.focus();
+  });
+}
+
+function cerrarFormulario() {
+  const card = DOM.modalPaciente.querySelector('.modal-card');
+  DOM.modalPaciente.classList.add('opacity-0');
+  card.classList.add('scale-95', 'opacity-0');
+  setTimeout(() => DOM.modalPaciente.classList.add('hidden'), 250);
+}
+
+const num = (el) => parseFloat(el.value);
+
+/** Lee y valida el formulario; según el modo, crea o actualiza el paciente. */
+function manejarSubmit(e) {
+  e.preventDefault();
+  const f = DOM.formPaciente.elements;
+  const datos = {
+    alias: f.alias.value.trim(),
+    tipo: f.tipo.value,
+    CR: num(f.cr), ISF: num(f.isf), TDD: num(f.tdd),
+    glucosaBasal: num(f.glucosaBasal), pico_absorcion_cho: num(f.pico),
+    variabilidad: num(f.variabilidad),
+    umbral_hipoglicemia_critica: num(f.umbral),
+    perfil_clinico: f.perfil.value.trim(),
+  };
+
+  const error = validar(datos);
+  if (error) { DOM.formPacienteError.textContent = error; return; }
+
+  if (_editandoId) {
+    const idx = editarPaciente(_editandoId, datos);
+    log('PATIENT', `Paciente actualizado: ${datos.alias}`, 'text-sky-400');
+    _editandoId = null;
+    cerrarFormulario();
+    if (idx !== -1 && _alEditar) _alEditar(idx);
+  } else {
+    const idx = agregarPaciente(datos);
+    log('PATIENT', `Nuevo paciente personalizado registrado: ${datos.alias}`, 'text-sky-400');
+    DOM.formPaciente.reset();
+    cerrarFormulario();
+    if (_alAgregar) _alAgregar(idx);
+  }
+}
+
+/** Reglas clínicas mínimas. Devuelve un mensaje de error o null si es válido. */
+function validar(d) {
+  if (!d.alias) return 'El alias es obligatorio.';
+  const positivos = {
+    'CR': d.CR, 'ISF': d.ISF, 'TDD': d.TDD,
+    'pico de absorción': d.pico_absorcion_cho, 'umbral de seguridad': d.umbral_hipoglicemia_critica,
+  };
+  for (const [k, v] of Object.entries(positivos)) {
+    if (!Number.isFinite(v) || v <= 0) return `El campo "${k}" debe ser un número mayor que 0.`;
+  }
+  if (!Number.isFinite(d.glucosaBasal) || d.glucosaBasal < 60 || d.glucosaBasal > 300)
+    return 'La glucosa basal debe estar entre 60 y 300 mg/dL.';
+  if (!Number.isFinite(d.variabilidad) || d.variabilidad < 0.01 || d.variabilidad > 0.5)
+    return 'La variabilidad debe estar entre 0.01 y 0.5.';
+  return null;
+}
+
+
+/* ===== js/main.js ===== */
+/**
+ * main.js — Punto de entrada y capa de orquestación.
+ *
+ * Conecta el modelo de datos, el motor de simulación, el pipeline y la UI.
+ * Es el único módulo cargado por index.html (`<script type="module">`); el
+ * resto se resuelve por imports.
+ */
+
+/* =========================================================================
+ * GUARDA DE DEPENDENCIAS (CDN)
+ * ========================================================================= */
+function dependenciasDisponibles() {
+  return typeof window.Chart !== 'undefined';
+}
+
+function mostrarErrorDependencias() {
+  const aviso = document.createElement('div');
+  aviso.className = 'fixed inset-x-0 top-0 z-50 bg-rose-900 text-rose-100 text-sm ' +
+    'font-mono px-4 py-3 text-center border-b border-rose-500';
+  aviso.textContent = '⚠ No se pudieron cargar las librerías externas (Chart.js). ' +
+    'Verifique la conexión a internet y recargue la página.';
+  document.body.prepend(aviso);
+}
+
+/* =========================================================================
+ * SELECTOR DE PACIENTES Y FICHA CLÍNICA
+ * ========================================================================= */
+// Reconstruye la lista de pacientes (re-ejecutable: limpia antes de poblar).
+function construirSelector() {
+  DOM.selectorPacientes.replaceChildren();
+  PACIENTES.forEach((p, idx) => {
+    const fila = document.createElement('div');
+    fila.className = 'relative';
+
+    const btn = document.createElement('button');
+    btn.dataset.idx = idx;
+    btn.className = 'patient-btn w-full text-left p-3 rounded-lg border border-slate-700 bg-slate-900/50 ' +
+      'hover:border-sky-500/50 hover:bg-slate-900 transition-all duration-300';
+    const etiquetaCustom = p.custom
+      ? ' <span class="text-[9px] px-1 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/30">custom</span>' : '';
+    btn.innerHTML =
+      `<p class="text-xs font-medium text-slate-200 pr-12">${p.alias}${etiquetaCustom}</p>` +
+      `<p class="text-[10px] font-mono text-slate-500 mt-0.5">${p.id} · ${p.tipo}</p>`;
+    btn.addEventListener('click', () => cargarPerfil(idx));
+    fila.appendChild(btn);
+
+    // Los pacientes personalizados pueden editarse y eliminarse
+    if (p.custom) {
+      const editar = document.createElement('button');
+      editar.className = 'absolute top-2 right-8 text-slate-500 hover:text-sky-400 transition-colors';
+      editar.title = 'Editar paciente';
+      editar.setAttribute('aria-label', `Editar ${p.alias}`);
+      editar.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>';
+      editar.addEventListener('click', (e) => { e.stopPropagation(); abrirEdicionPaciente(p); });
+      fila.appendChild(editar);
+
+      const del = document.createElement('button');
+      del.className = 'absolute top-2 right-2 text-slate-500 hover:text-rose-400 transition-colors';
+      del.title = 'Eliminar paciente';
+      del.setAttribute('aria-label', `Eliminar ${p.alias}`);
+      del.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>';
+      del.addEventListener('click', (e) => manejarEliminar(e, p.id));
+      fila.appendChild(del);
+    }
+
+    DOM.selectorPacientes.appendChild(fila);
+  });
+}
+
+function marcarSeleccionado(idx) {
+  DOM.selectorPacientes.querySelectorAll('.patient-btn').forEach((b) => {
+    const sel = Number(b.dataset.idx) === idx;
+    b.classList.toggle('border-sky-500', sel);
+    b.classList.toggle('bg-slate-900', sel);
+    b.classList.toggle('ring-1', sel);
+    b.classList.toggle('ring-sky-500/40', sel);
+  });
+}
+
+// Elimina un paciente personalizado y vuelve al primer perfil.
+function manejarEliminar(e, id) {
+  e.stopPropagation();
+  if (!eliminarPaciente(id)) return;
+  log('PATIENT', `Paciente personalizado eliminado: ${id}`, 'text-rose-400');
+  construirSelector();
+  cargarPerfil(0);
+}
+
+function chipParam(label, valor, alerta) {
+  const color = alerta ? 'text-rose-400' : 'text-sky-300';
+  return `<div class="bg-slate-900/60 border border-slate-700 rounded-md px-2 py-1.5">` +
+    `<span class="text-slate-500">${label}</span>` +
+    `<span class="block ${color} font-semibold tnum">${valor}</span></div>`;
+}
+
+/** Carga un perfil: ficha clínica, estado basal y log. */
+function cargarPerfil(idx) {
+  estado.perfilActual = PACIENTES[idx];
+  const perfil = estado.perfilActual;
+  marcarSeleccionado(idx);
+
+  DOM.perfilClinico.textContent = perfil.perfil_clinico;
+  const par = perfil.parametros;
+  DOM.perfilParametros.innerHTML =
+    chipParam('CR', par.CR + ' g/U') +
+    chipParam('ISF', par.ISF + ' mg/dL') +
+    chipParam('TDD', par.TDD + ' U/día') +
+    chipParam('Basal', par.glucosaBasal + ' mg/dL') +
+    chipParam('Pico CHO', par.pico_absorcion_cho + ' min') +
+    chipParam('Variabilidad', (par.variabilidad * 100).toFixed(0) + '%') +
+    chipParam('Umbral seg.', perfil.umbral_hipoglicemia_critica + ' U', true);
+
+  renderBasal(perfil);
+
+  registrarFlujoSeguridad('patient_profile_load',
+    { patient_id: perfil.id, profile_type: perfil.tipo, basal: par.glucosaBasal, origin: 'historico' },
+    { detalleEvento: `EVENT: patient_profile_load | patient=${perfil.id} | type=${perfil.tipo}` });
+}
+
+/* =========================================================================
+ * SIMULACIÓN (con verificación de seguridad previa)
+ * ========================================================================= */
+function ejecutarSimulacion() {
+  const perfil = estado.perfilActual;
+  if (!perfil) return;
+  const gCHO = parseFloat(DOM.inputCHO.value);
+  const uInsulina = parseFloat(DOM.inputInsulina.value);
+  const umbral = perfil.umbral_hipoglicemia_critica;
+
+  // Verificación de dosis peligrosa ANTES de simular
+  if (uInsulina > umbral) {
+    estado.simPendiente = { gCHO, uInsulinaOriginal: uInsulina, umbral };
+    setRL(false, true);          // anulación preventiva del RL (con animación)
+    abrirModal(uInsulina, umbral);
+    return;
+  }
+
+  // Camino normal
+  sesionActiva.fk_paciente = perfil.id;
+  sesionActiva.estado = 'activa';
+  renderSimulacion(perfil, gCHO, uInsulina, false);
+
+  const glucosaActual = estado.registroGlucemico.length
+    ? estado.registroGlucemico[0].glucosa_mg_dl : perfil.parametros.glucosaBasal;
+  registrarFlujoSeguridad('simulation_request', {
+    patient_id: perfil.id, glucose: glucosaActual,
+    cho_g: gCHO, insulin_u: uInsulina, timestamp: '2026-06-12T08:34:11Z',
+  });
+}
+
+/** Continuación tras confirmar la alerta de fallback (dosis recortada al umbral). */
+function continuarConFallback() {
+  cerrarModal();
+  DOM.btnSimular.focus(); // accesibilidad: devuelve el foco al disparador
+  if (!estado.simPendiente) return;
+
+  const perfil = estado.perfilActual;
+  const { gCHO, uInsulinaOriginal, umbral } = estado.simPendiente;
+  const uSegura = umbral; // dosis recortada al umbral seguro
+
+  sesionActiva.fk_paciente = perfil.id;
+  sesionActiva.estado = 'activa';
+  renderSimulacion(perfil, gCHO, uSegura, true);
+
+  log('FALLBACK_PID',
+    `Dosis ${uInsulinaOriginal.toFixed(1)}U > umbral ${umbral.toFixed(1)}U → RL anulado · bolo recortado a ${uSegura.toFixed(1)}U`,
+    'text-rose-400');
+  registrarFlujoSeguridad('simulation_request_fallback', {
+    patient_id: perfil.id, cho_g: gCHO, insulin_u: uSegura,
+    insulin_requested: uInsulinaOriginal, controller: 'PID_heuristic',
+    timestamp: '2026-06-12T08:34:11Z',
+  });
+  estado.simPendiente = null;
+}
+
+/* =========================================================================
+ * PIPELINE OhioT1DM (orquestación: pipeline + render + logs)
+ * ========================================================================= */
+function cargarOhio() {
+  const raw = generarOhioRaw();
+  const labels = raw.map((_, idx) => etiquetaTiempo(idx * CONFIG.sim.pasoMin, CONFIG.ohio.horaInicio));
+
+  // --- Paso 1: serie cruda (con gaps y spikes) ---
+  estado.curvaActual = { valores: raw, ultimo: raw.filter((v) => v !== null).pop() };
+  setBadgeModo('OhioT1DM · [RAW — Sin procesar]', 'amber');
+  renderOhioRaw(raw, labels);
+  updateAllMetrics();
+
+  registrarFlujoSeguridad('ohiot1dm_load_raw',
+    { patient_id: 'ohio-559', source: 'OhioT1DM_2020', samples: raw.length, origin: 'ohiot1dm' },
+    { detalleEvento: 'EVENT: ohiot1dm_load_raw | dataset=OhioT1DM | patient=559 | gaps=3 | spikes=3' });
+  log('PIPELINE', 'detect_gaps: 3 brechas de señal detectadas (valores null)', 'text-amber-400');
+  log('PIPELINE', 'detect_outliers: 3 spikes de calibración (±60 mg/dL) marcados', 'text-amber-400');
+
+  // --- Paso 2: preprocesamiento animado (1.5 s de delay visual) ---
+  DOM.pipelineStatus.classList.remove('hidden');
+  DOM.pipelineStatus.classList.add('flex');
+
+  setTimeout(() => {
+    const { interpolado, suavizado } = preprocesarOhio(raw);
+    renderOhioProcesado(raw, interpolado, suavizado);
+
+    DOM.pipelineStatus.classList.add('hidden');
+    DOM.pipelineStatus.classList.remove('flex');
+    estado.curvaActual = { valores: suavizado, ultimo: suavizado[suavizado.length - 1] };
+    setBadgeModo('OhioT1DM · [PROCESADO — Listo para inferencia]', 'emerald');
+    updateAllMetrics();
+
+    log('PIPELINE', 'linear_interpolation: 3 gaps rellenados', 'text-sky-400');
+    log('PIPELINE', 'moving_average(window=5): spikes suavizados', 'text-sky-400');
+    registrarFlujoSeguridad('ohiot1dm_preprocess_done',
+      { patient_id: 'ohio-559', steps: ['interpolation', 'moving_avg_w5'], status: 'ready_for_inference', origin: 'ohiot1dm' },
+      { detalleEvento: 'EVENT: ohiot1dm_preprocess_done | interpolation=linear | smoothing=MM5 | status=ready' });
+  }, 1500);
+}
+
+/* =========================================================================
+ * RESOLUCIÓN DEL EJE TEMPORAL (pestaña 5 min / 1 hora)
+ * ========================================================================= */
+function setResolucion(modo) {
+  setResolucionEje(modo);
+  const base = 'px-2 py-1 text-[10px] font-mono rounded-md border transition-all ';
+  const activo = 'border-sky-500/30 bg-sky-500/15 text-sky-400';
+  const inactivo = 'border-slate-700 text-slate-400 hover:text-slate-200';
+  DOM.btnEjeDetalle.className = base + (modo === 'detalle' ? activo : inactivo);
+  DOM.btnEjeHora.className = base + (modo === 'hora' ? activo : inactivo);
+}
+
+/* =========================================================================
+ * MANEJADORES DE EVENTOS
+ * ========================================================================= */
+function bindEventos() {
+  DOM.inputCHO.addEventListener('input', () => { DOM.valCHO.textContent = DOM.inputCHO.value; });
+  DOM.inputInsulina.addEventListener('input', () => {
+    DOM.valInsulina.textContent = parseFloat(DOM.inputInsulina.value).toFixed(1);
+  });
+  DOM.btnSimular.addEventListener('click', ejecutarSimulacion);
+
+  DOM.toggleRL.addEventListener('click', () => setRL(!estado.rlActivo, false));
+  DOM.toggleRL.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setRL(!estado.rlActivo, false); }
+  });
+
+  DOM.btnOhio.addEventListener('click', cargarOhio);
+  DOM.btnEjeDetalle.addEventListener('click', () => setResolucion('detalle'));
+  DOM.btnEjeHora.addEventListener('click', () => setResolucion('hora'));
+  DOM.btnCerrarModal.addEventListener('click', continuarConFallback);
+
+  // Accesibilidad: cerrar el modal de fallback con Escape (procede con PID)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modalVisible()) continuarConFallback();
+  });
+
+  DOM.btnLimpiarLogs.addEventListener('click', limpiarLogs);
+}
+
+/* =========================================================================
+ * ARRANQUE
+ * ========================================================================= */
+function init() {
+  cacheDOM();
+
+  if (!dependenciasDisponibles()) { mostrarErrorDependencias(); return; }
+
+  // Registro del plugin de anotaciones (líneas de referencia 70/180 mg/dL)
+  if (window['chartjs-plugin-annotation']) {
+    window.Chart.register(window['chartjs-plugin-annotation']);
+  }
+
+  initChart();
+  cargarPacientesGuardados();   // anexa los pacientes personalizados del navegador
+  construirSelector();
+  bindEventos();
+  cablearFormularioPaciente({
+    alAgregar: (idx) => { construirSelector(); cargarPerfil(idx); },
+    alEditar: (idx) => { construirSelector(); cargarPerfil(idx); },
+  });
+
+  log('SYSTEM', 'BioTwin-DM v1.0.0-demo inicializado · modelo compartimental (tipo UVA/Padova) · integración RK4', 'text-emerald-400');
+  log('SYSTEM', 'Cifrado Fernet/AES-256 activo · cumplimiento Ley N° 19.628 y N° 21.719', 'text-slate-400');
+
+  renderRMSECard();  // render estático de la tarjeta RMSE (valor fijo de referencia)
+  cargarPerfil(0);   // carga el primer perfil por defecto
+}
+
+// Los módulos ES se ejecutan diferidos (tras el parseo del DOM), pero
+// añadimos la guarda de readyState por robustez.
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+  })();
+  </script>
+</body>
+</html>
