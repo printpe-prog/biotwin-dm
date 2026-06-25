@@ -5,7 +5,7 @@
 | Entorno | URL / Acceso | Descripción |
 |---------|-------------|-------------|
 | **Desarrollo** | `http://localhost:8000` | `node dev-server.mjs` — versión modular ES |
-| **Producción** | `ftp.hostlan.cl` | Monolito `BioTwin_DM_Prototype_v1.html` via FTP |
+| **Producción** | `http://hostlan.cl/biotwin/` | Monolito `index.html` via FTP |
 
 ---
 
@@ -31,14 +31,15 @@
 
 Para deploy manual:
 ```bash
-FTP_PASS=tupassword node deploy.mjs
+FTP_PASS=<tu_contraseña> node deploy.mjs
 ```
 
 ---
 
 ## Repositorio GitHub
 
-- **Repo:** `https://github.com/felipevera2002/biotwin-dm` *(por crear)*
+- **Repo:** `https://github.com/felipevera2002-coder/biotwin-dm`
+- **Usuario:** `felipevera2002-coder`
 - **Branch principal:** `main`
 - **Auth:** Personal Access Token (PAT) — nunca usuario/contraseña
 
