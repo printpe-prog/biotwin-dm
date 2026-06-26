@@ -2182,7 +2182,7 @@ function construirSelectorBackend() {
   sel.className = 'selector-paciente';
   sel.setAttribute('aria-label', 'Seleccionar paciente virtual');
 
-  const grupos = { adulto: 'Adultos', adolescente: 'Adolescentes', pediatrico: 'Niños' };
+  const grupos = { adulto: 'Adultos', adolescente: 'Adolescentes', pediatrico: 'Niños', real: 'Pacientes reales (OhioT1DM)' };
   for (const tipo of Object.keys(grupos)) {
     const items = pacientesBackend
       .map((p, idx) => ({ p, idx }))
@@ -2201,9 +2201,12 @@ function construirSelectorBackend() {
   sel.addEventListener('change', () => cargarPerfilBackend(Number(sel.value)));
   DOM.selectorPacientes.appendChild(sel);
 
+  const nReales = pacientesBackend.filter((p) => p.tipo === 'real').length;
+  const nVirtuales = pacientesBackend.length - nReales;
   const info = document.createElement('p');
   info.className = 'text-[10px] text-slate-500 mt-2 font-mono flex items-center gap-1';
-  info.innerHTML = `<span class="text-emerald-400">${pacientesBackend.length}</span> perfiles UVA/Padova · validados FDA`;
+  info.innerHTML = `<span class="text-emerald-400">${nVirtuales}</span> virtuales UVA/Padova (FDA)` +
+    (nReales ? ` · <span class="text-sky-400">${nReales}</span> reales OhioT1DM` : '');
   DOM.selectorPacientes.appendChild(info);
 
   // El botón "Nuevo paciente" no aplica en modo backend (perfiles validados FDA).
