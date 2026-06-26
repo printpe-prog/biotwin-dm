@@ -1,0 +1,17 @@
+# Entorno virtual (se recrea con requirements.txt)
+venv/
+
+# Artefactos de Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Modelos entrenados (pesados; se regeneran con app.rl.entrenar)
+modelos_entrenados/*.zip
+
+# Datasets con restricción de licencia (DUA OhioT1DM) — nunca versionar
+datos/ohio/*.xml
+datos/ohio/*.csv
+
+# Scripts temporales de desarrollo
+_*.py

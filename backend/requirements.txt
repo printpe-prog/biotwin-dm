@@ -1,0 +1,28 @@
+# BioTwin-DM — Backend Python (FastAPI + simglucose + RL real)
+# Instalación:  venv\Scripts\python -m pip install -r requirements.txt
+
+# --- Compatibilidad: simglucose arrastra gym 0.9.4 (legacy), que usa
+#     pkg_resources, removido en setuptools 81+. Fijamos setuptools<81. ---
+setuptools==80.9.0
+
+# --- API web ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+
+# --- Motor de simulación fisiológica (UVA/Padova, FDA) ---
+simglucose==0.2.11
+
+# --- Aprendizaje por refuerzo ---
+stable-baselines3==2.4.1
+gymnasium==0.29.1
+torch==2.5.1
+
+# --- Datos y validación (OhioT1DM: RMSE, R²) ---
+numpy==1.26.4
+pandas==2.2.3
+scipy==1.14.1
+scikit-learn==1.6.0
+
+# --- Seguridad (Ley N° 19.628 / 21.719) ---
+cryptography==44.0.0

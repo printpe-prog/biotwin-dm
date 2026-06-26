@@ -2,3 +2,14 @@ node_modules/
 .env
 *.local
 __*
+
+# Logs de ejecución de los servidores en segundo plano
+*.log
+
+# Configuración local de preview (rutas absolutas de la máquina)
+.claude/
+
+# Artefactos temporales de generación de documentos (guion .docx)
+_*.mjs
+package.json
+package-lock.json
