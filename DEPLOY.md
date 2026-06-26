@@ -4,8 +4,16 @@
 
 | Entorno | URL / Acceso | Descripción |
 |---------|-------------|-------------|
-| **Desarrollo** | `http://localhost:8000` | `node dev-server.mjs` — versión modular ES |
-| **Producción** | `http://hostlan.cl/biotwin/` | Monolito `index.html` via FTP |
+| **Frontend dev** | `http://localhost:8000` | `node dev-server.mjs` — versión modular ES |
+| **Backend dev** | `http://localhost:8001` | `uvicorn app.main:app` — motor real (FastAPI + simglucose + RL) |
+| **Producción (frontend)** | `http://hostlan.cl/biotwin/` | Monolito `index.html` via FTP (modo offline) |
+
+> **Backend (motor real):** `hostlan.cl` es hosting estático FTP y **no ejecuta
+> Python**. El backend FastAPI corre **local** para la defensa (decisión actual:
+> "local primero"). Para una URL pública en vivo se requiere un host con Python
+> (Render, Railway, Fly.io o un VPS); en ese caso, definir `window.BIOTWIN_API_URL`
+> en el frontend apuntando a esa URL. El frontend desplegado en FTP seguirá
+> funcionando en **modo offline** si el backend no está disponible.
 
 ---
 

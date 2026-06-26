@@ -7,6 +7,34 @@ Proyecto de título — Universidad Andrés Bello · Portafolio de Proyectos (IN
 
 ---
 
+## Dos modos de ejecución
+
+El proyecto funciona en dos modos complementarios:
+
+| Modo | Motor | Cómo |
+|------|-------|------|
+| **Completo (backend real)** | **simglucose (UVA/Padova, FDA) + agente RL real (Stable-Baselines3) + validación OhioT1DM + cifrado Fernet real** | Levantar el backend Python (ver [`backend/README.md`](backend/README.md)) y luego el frontend |
+| **Offline (portable)** | Motor JavaScript local (modelo compartimental RK4) + cifrado simulado | Solo el frontend; abre el build de un archivo o sirve `index.html` |
+
+El frontend detecta el backend automáticamente: si responde en
+`http://localhost:8001`, usa el **motor real**; si no, cae al **motor local**.
+
+### Arranque del modo completo
+
+```powershell
+# Terminal 1 — backend (motor real)
+cd backend
+python -m venv venv
+venv\Scripts\python -m pip install -r requirements.txt
+venv\Scripts\python -m app.rl.entrenar --patient adult#001 --timesteps 250000   # entrena el RL (una vez)
+venv\Scripts\uvicorn app.main:app --port 8001
+
+# Terminal 2 — frontend
+node dev-server.mjs        # http://localhost:8000
+```
+
+---
+
 ## Cómo ejecutar
 
 Esta versión usa **módulos ES** (`import`/`export`), por lo que **no se abre con

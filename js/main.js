@@ -14,11 +14,16 @@ import { etiquetaTiempo } from './core/tiempo.js';
 import { generarOhioRaw, preprocesarOhio } from './pipeline/ohio.js';
 import {
   initChart, renderBasal, renderSimulacion, renderOhioRaw, renderOhioProcesado, setResolucionEje,
+  renderTrayectoria, renderValidacion,
 } from './ui/grafico.js';
-import { updateAllMetrics, setBadgeModo, renderRMSECard } from './ui/kpis.js';
-import { log, registrarFlujoSeguridad, limpiarLogs } from './ui/consola.js';
+import { updateAllMetrics, setBadgeModo, renderRMSECard, setMetricasBackend, setRMSEBackend } from './ui/kpis.js';
+import { log, registrarFlujoSeguridad, logFlujoBackend, limpiarLogs } from './ui/consola.js';
 import { setRL, abrirModal, cerrarModal, modalVisible } from './ui/modal.js';
 import { cablearFormularioPaciente, abrirEdicionPaciente } from './ui/formularioPaciente.js';
+import { api, probarBackend, listarPacientes, apiSimular, apiValidar } from './api.js';
+
+// Pacientes provenientes del backend (motor real). Vacío en modo offline.
+let pacientesBackend = [];
 
 /* =========================================================================
  * GUARDA DE DEPENDENCIAS (CDN)
@@ -116,13 +121,13 @@ function cargarPerfil(idx) {
   DOM.perfilClinico.textContent = perfil.perfil_clinico;
   const par = perfil.parametros;
   DOM.perfilParametros.innerHTML =
-    chipParam('CR', par.CR + ' g/U') +
-    chipParam('ISF', par.ISF + ' mg/dL') +
-    chipParam('TDD', par.TDD + ' U/día') +
-    chipParam('Basal', par.glucosaBasal + ' mg/dL') +
-    chipParam('Pico CHO', par.pico_absorcion_cho + ' min') +
+    chipParam('Ratio comida', par.CR + ' g/U') +
+    chipParam('Sensibilidad', par.ISF + ' mg/dL') +
+    chipParam('Dosis diaria', par.TDD + ' U/día') +
+    chipParam('Glucosa base', par.glucosaBasal + ' mg/dL') +
+    chipParam('Absorción', par.pico_absorcion_cho + ' min') +
     chipParam('Variabilidad', (par.variabilidad * 100).toFixed(0) + '%') +
-    chipParam('Umbral seg.', perfil.umbral_hipoglicemia_critica + ' U', true);
+    chipParam('Límite bolo', perfil.umbral_hipoglicemia_critica + ' U', true);
 
   renderBasal(perfil);
 
@@ -188,6 +193,163 @@ function continuarConFallback() {
 }
 
 /* =========================================================================
+ * MODO BACKEND (motor real: simglucose UVA/Padova + RL + cifrado Fernet)
+ * ========================================================================= */
+async function iniciarModoBackend() {
+  const s = api.salud || {};
+  log('SYSTEM', `Backend conectado · ${s.motor || 'simglucose'} · RL ${s.rl_disponible ? 'entrenado (PPO)' : 'no disponible → PID'}`, 'text-emerald-400');
+  log('SYSTEM', 'Cifrado Fernet/AES real en servidor · cumplimiento Ley N° 19.628 y N° 21.719', 'text-slate-400');
+
+  pacientesBackend = await listarPacientes();
+  construirSelectorBackend();
+  await cargarPerfilBackend(0);
+
+  // Validación inicial (OE3/OE4): RMSE y R² reales para la tarjeta.
+  try {
+    const v = await apiValidar({ patient_id: '559', horizonte_pred_min: 30 });
+    setRMSEBackend({ rmse: v.rmse, r2: v.r2, fuente: v.fuente, cumple: v.cumple_rmse && v.cumple_r2 });
+  } catch { renderRMSECard(); }
+}
+
+function construirSelectorBackend() {
+  DOM.selectorPacientes.replaceChildren();
+
+  const sel = document.createElement('select');
+  sel.id = 'dropdownPacientes';
+  sel.className = 'selector-paciente';
+  sel.setAttribute('aria-label', 'Seleccionar paciente virtual');
+
+  const grupos = { adulto: 'Adultos', adolescente: 'Adolescentes', pediatrico: 'Niños', real: 'Pacientes reales (OhioT1DM)' };
+  for (const tipo of Object.keys(grupos)) {
+    const items = pacientesBackend
+      .map((p, idx) => ({ p, idx }))
+      .filter(({ p }) => p.tipo === tipo);
+    if (!items.length) continue;
+    const og = document.createElement('optgroup');
+    og.label = grupos[tipo];
+    for (const { p, idx } of items) {
+      const o = document.createElement('option');
+      o.value = String(idx);
+      o.textContent = p.alias;
+      og.appendChild(o);
+    }
+    sel.appendChild(og);
+  }
+  sel.addEventListener('change', () => cargarPerfilBackend(Number(sel.value)));
+  DOM.selectorPacientes.appendChild(sel);
+
+  const nReales = pacientesBackend.filter((p) => p.tipo === 'real').length;
+  const nVirtuales = pacientesBackend.length - nReales;
+  const info = document.createElement('p');
+  info.className = 'text-[10px] text-slate-500 mt-2 font-mono flex items-center gap-1';
+  info.innerHTML = `<span class="text-emerald-400">${nVirtuales}</span> virtuales UVA/Padova (FDA)` +
+    (nReales ? ` · <span class="text-sky-400">${nReales}</span> reales OhioT1DM` : '');
+  DOM.selectorPacientes.appendChild(info);
+
+  // El botón "Nuevo paciente" no aplica en modo backend (perfiles validados FDA).
+  DOM.btnNuevoPaciente.classList.add('hidden');
+}
+
+async function cargarPerfilBackend(idx) {
+  const p = pacientesBackend[idx];
+  estado.perfilActual = p;
+  const dd = document.getElementById('dropdownPacientes');
+  if (dd) dd.value = String(idx);
+
+  DOM.perfilClinico.textContent = p.perfil_clinico;
+  const par = p.parametros;
+  DOM.perfilParametros.innerHTML =
+    chipParam('Ratio comida', par.CR + ' g/U') +
+    chipParam('Sensibilidad', par.ISF + ' mg/dL') +
+    chipParam('Dosis diaria', par.TDD + ' U/día') +
+    chipParam('Glucosa base', par.glucosaBasal + ' mg/dL') +
+    chipParam('Peso', par.peso_kg + ' kg') +
+    chipParam('Edad', (par.edad ?? '—') + ' años') +
+    chipParam('Límite bolo', p.umbral_hipoglicemia_critica + ' U', true);
+
+  setBadgeModo('Estado basal (motor real)', 'sky');
+  // Trayectoria basal real (sin comida ni bolo) desde el motor UVA/Padova.
+  try {
+    const res = await apiSimular({
+      patient_name: p.simglucose_name, cho_g: 0, bolus_u: 0,
+      horizonte_min: 360, usar_rl: false, seed: 1,
+    });
+    renderTrayectoria(res.puntos, 'Estado basal (motor real)', 'sky');
+    setMetricasBackend({ tir: res.tir, tbr: res.tbr, decision: res.decision_clinica });
+  } catch (e) {
+    log('ERROR', 'No se pudo cargar el estado basal: ' + e.message, 'text-rose-400');
+  }
+}
+
+function ejecutarSimulacionBackend() {
+  const p = estado.perfilActual;
+  if (!p) return;
+  const gCHO = parseFloat(DOM.inputCHO.value);
+  const uIns = parseFloat(DOM.inputInsulina.value);
+  const umbral = p.umbral_hipoglicemia_critica;
+
+  if (uIns > umbral) {
+    estado.simPendiente = { gCHO, uInsulinaOriginal: uIns, umbral };
+    setRL(false, true);
+    abrirModal(uIns, umbral);
+    return;
+  }
+  correrBackend(p, gCHO, uIns, estado.rlActivo, false);
+}
+
+function continuarConFallbackBackend() {
+  cerrarModal();
+  DOM.btnSimular.focus();
+  if (!estado.simPendiente) return;
+  const p = estado.perfilActual;
+  const { gCHO, uInsulinaOriginal } = estado.simPendiente;
+  // El backend recorta el bolo al umbral y conmuta a PID.
+  correrBackend(p, gCHO, uInsulinaOriginal, false, true);
+  estado.simPendiente = null;
+}
+
+async function correrBackend(p, gCHO, uIns, usarRL, esFallback) {
+  DOM.btnSimular.disabled = true;
+  try {
+    const res = await apiSimular({
+      patient_name: p.simglucose_name, cho_g: gCHO, bolus_u: uIns,
+      horizonte_min: 360, usar_rl: usarRL, seed: 1,
+    });
+    const tono = res.fallback_activado ? 'rose' : (res.controlador === 'RL' ? 'emerald' : 'sky');
+    const modo = res.fallback_activado ? 'Predicción · PID (Fallback)' : `Predicción · ${res.controlador}`;
+    renderTrayectoria(res.puntos, modo, tono);
+    setMetricasBackend({ tir: res.tir, tbr: res.tbr, decision: res.decision_clinica });
+    if (res.fallback_activado) {
+      log('FALLBACK_PID', `Bolo ${res.bolus_solicitado}U > umbral ${res.umbral}U → RL anulado · recortado a ${res.bolus_efectivo}U`, 'text-rose-400');
+    }
+    logFlujoBackend(res.flujo_seguridad);
+  } catch (e) {
+    log('ERROR', 'Fallo en la simulación: ' + e.message, 'text-rose-400');
+  } finally {
+    DOM.btnSimular.disabled = false;
+  }
+}
+
+async function cargarValidacionBackend() {
+  DOM.pipelineStatus.classList.remove('hidden');
+  DOM.pipelineStatus.classList.add('flex');
+  try {
+    const v = await apiValidar({ patient_id: '559', horizonte_pred_min: 30 });
+    renderValidacion(v.labels, v.serie_real, v.serie_predicha);
+    const ok = v.cumple_rmse && v.cumple_r2;
+    setBadgeModo(`Validación · RMSE ${v.rmse} · R² ${v.r2}`, ok ? 'emerald' : 'amber');
+    setRMSEBackend({ rmse: v.rmse, r2: v.r2, fuente: v.fuente, cumple: ok });
+    log('VALIDACION', `Fuente: ${v.fuente} · n=${v.n_muestras} muestras`, 'text-sky-400');
+    log('VALIDACION', `RMSE=${v.rmse} mg/dL (meta <25) · R²=${v.r2} (meta ≥0.85) · MAE=${v.mae}`, ok ? 'text-emerald-400' : 'text-amber-400');
+  } catch (e) {
+    log('ERROR', 'Fallo en la validación: ' + e.message, 'text-rose-400');
+  } finally {
+    DOM.pipelineStatus.classList.add('hidden');
+    DOM.pipelineStatus.classList.remove('flex');
+  }
+}
+
+/* =========================================================================
  * PIPELINE OhioT1DM (orquestación: pipeline + render + logs)
  * ========================================================================= */
 function cargarOhio() {
@@ -243,26 +405,37 @@ function setResolucion(modo) {
 /* =========================================================================
  * MANEJADORES DE EVENTOS
  * ========================================================================= */
+// Routers: en modo backend usan el motor real; si no, el motor JS local.
+function simularRouter() { return api.online ? ejecutarSimulacionBackend() : ejecutarSimulacion(); }
+function ohioRouter() { return api.online ? cargarValidacionBackend() : cargarOhio(); }
+function fallbackRouter() { return api.online ? continuarConFallbackBackend() : continuarConFallback(); }
+function alternarRL() {
+  setRL(!estado.rlActivo, api.online); // silencioso online (sin cripto simulada local)
+  if (api.online) {
+    log('CONTROL', `Política activa: ${estado.rlActivo ? 'Agente RL (PPO entrenado)' : 'Controlador PID clásico'}`, 'text-sky-400');
+  }
+}
+
 function bindEventos() {
   DOM.inputCHO.addEventListener('input', () => { DOM.valCHO.textContent = DOM.inputCHO.value; });
   DOM.inputInsulina.addEventListener('input', () => {
     DOM.valInsulina.textContent = parseFloat(DOM.inputInsulina.value).toFixed(1);
   });
-  DOM.btnSimular.addEventListener('click', ejecutarSimulacion);
+  DOM.btnSimular.addEventListener('click', simularRouter);
 
-  DOM.toggleRL.addEventListener('click', () => setRL(!estado.rlActivo, false));
+  DOM.toggleRL.addEventListener('click', alternarRL);
   DOM.toggleRL.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setRL(!estado.rlActivo, false); }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alternarRL(); }
   });
 
-  DOM.btnOhio.addEventListener('click', cargarOhio);
+  DOM.btnOhio.addEventListener('click', ohioRouter);
   DOM.btnEjeDetalle.addEventListener('click', () => setResolucion('detalle'));
   DOM.btnEjeHora.addEventListener('click', () => setResolucion('hora'));
-  DOM.btnCerrarModal.addEventListener('click', continuarConFallback);
+  DOM.btnCerrarModal.addEventListener('click', fallbackRouter);
 
   // Accesibilidad: cerrar el modal de fallback con Escape (procede con PID)
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && modalVisible()) continuarConFallback();
+    if (e.key === 'Escape' && modalVisible()) fallbackRouter();
   });
 
   DOM.btnLimpiarLogs.addEventListener('click', limpiarLogs);
@@ -271,7 +444,7 @@ function bindEventos() {
 /* =========================================================================
  * ARRANQUE
  * ========================================================================= */
-function init() {
+async function init() {
   cacheDOM();
 
   if (!dependenciasDisponibles()) { mostrarErrorDependencias(); return; }
@@ -282,16 +455,26 @@ function init() {
   }
 
   initChart();
+  bindEventos();
+
+  // ¿Hay backend real (FastAPI + simglucose + RL)? Si sí, se usa; si no, motor local.
+  const online = await probarBackend();
+
+  if (online) {
+    await iniciarModoBackend();
+    return;
+  }
+
+  // --- Modo offline: motor JavaScript local (build portable) ---
   cargarPacientesGuardados();   // anexa los pacientes personalizados del navegador
   construirSelector();
-  bindEventos();
   cablearFormularioPaciente({
     alAgregar: (idx) => { construirSelector(); cargarPerfil(idx); },
     alEditar: (idx) => { construirSelector(); cargarPerfil(idx); },
   });
 
-  log('SYSTEM', 'BioTwin-DM v1.0.0-demo inicializado · modelo compartimental (tipo UVA/Padova) · integración RK4', 'text-emerald-400');
-  log('SYSTEM', 'Cifrado Fernet/AES-256 activo · cumplimiento Ley N° 19.628 y N° 21.719', 'text-slate-400');
+  log('SYSTEM', 'BioTwin-DM (modo offline) · modelo compartimental tipo UVA/Padova · integración RK4', 'text-emerald-400');
+  log('SYSTEM', 'Backend no detectado · cifrado simulado · inicie el servidor para el motor real', 'text-amber-400');
 
   renderRMSECard();  // render estático de la tarjeta RMSE (valor fijo de referencia)
   cargarPerfil(0);   // carga el primer perfil por defecto

@@ -43,6 +43,23 @@ export function limpiarLogs() {
   log('SYSTEM', 'Buffer de logs purgado. Contador de operaciones cifradas preservado (total de sesión).', 'text-slate-400');
 }
 
+/**
+ * Imprime el flujo de seguridad REAL devuelto por el backend (cifrado Fernet
+ * real + anonimización SHA-256). A diferencia de `registrarFlujoSeguridad`, los
+ * bloques cifrados y los hashes provienen del servidor, no se simulan.
+ */
+export function logFlujoBackend(flujo) {
+  const colores = {
+    INFO: 'text-sky-400', ENCRYPT: 'text-amber-400', ANONYMIZE: 'text-violet-400',
+    FERNET: 'text-emerald-400', DB_WRITE: 'text-emerald-400',
+  };
+  (flujo.entradas || []).forEach((e) => log(e.tag, e.msg, colores[e.tag] || 'text-slate-300'));
+  if (typeof flujo.ops_cifradas === 'number') {
+    estado.opsCifradas = flujo.ops_cifradas;
+    DOM.opsCounter.textContent = estado.opsCifradas;
+  }
+}
+
 /** Flujo de seguridad de 5 entradas por evento. Incrementa el contador cifrado. */
 export function registrarFlujoSeguridad(evento, payload, opciones = {}) {
   const pid = payload.patient_id || (estado.perfilActual ? estado.perfilActual.id : 'anon-unknown');

@@ -52,6 +52,9 @@ function animarContador(el, desde, hasta, ms = 400) {
     else el.textContent = hasta.toFixed(1);
   }
   requestAnimationFrame(frame);
+  // Fallback: si rAF está throttled (pestaña en segundo plano), garantiza el
+  // valor final de todos modos.
+  setTimeout(() => { el.textContent = hasta.toFixed(1); }, ms + 80);
 }
 
 /** Render estático de la tarjeta RMSE (valor fijo de referencia). Una vez en init. */
@@ -133,6 +136,53 @@ export function updateAllMetrics() {
 
   // --- Tarjeta 4: Soporte a la decisión clínica ---
   renderDecisionSupport(ultimo);
+}
+
+/**
+ * Fija las métricas provenientes del BACKEND (ya calculadas sobre la serie real
+ * del motor UVA/Padova). Anima los contadores hacia los valores recibidos.
+ */
+export function setMetricasBackend({ tir, tbr, decision }) {
+  const { tirVerde, tirAmbar, tbrMax } = CONFIG.metas;
+
+  const tirColor = tir > tirVerde ? COLORES.euglucemia
+    : (tir >= tirAmbar ? COLORES.hiper : COLORES.hipo);
+  animarContador(DOM.tirValor, tirPrevio, tir);
+  DOM.tirValor.style.color = tirColor;
+  DOM.tirBarra.style.width = tir.toFixed(1) + '%';
+  DOM.tirBarra.style.backgroundColor = tirColor;
+  if (tir > tirVerde) {
+    DOM.tirBadge.textContent = '✓ Clinical Target Met';
+    DOM.tirBadge.className = 'mt-2 text-[11px] font-medium text-emerald-400';
+  } else {
+    DOM.tirBadge.textContent = '✗ Clinical Target Not Met';
+    DOM.tirBadge.className = 'mt-2 text-[11px] font-medium text-rose-400';
+  }
+  tirPrevio = tir;
+
+  const tbrColor = tbr < tbrMax ? COLORES.euglucemia : COLORES.hipo;
+  animarContador(DOM.tbrValor, tbrPrevio, tbr);
+  DOM.tbrValor.style.color = tbrColor;
+  DOM.tbrBarra.style.width = Math.min(tbr * 4, 100).toFixed(1) + '%';
+  DOM.tbrBarra.style.backgroundColor = tbrColor;
+  tbrPrevio = tbr;
+
+  if (decision !== undefined) {
+    DOM.decisionTexto.textContent = decision;
+  }
+}
+
+/** Actualiza la tarjeta RMSE con la validación real del backend (OE3/OE4). */
+export function setRMSEBackend({ rmse, r2, fuente, cumple }) {
+  DOM.rmseValor.textContent = rmse.toFixed(1);
+  if (cumple) {
+    DOM.rmseBadge.textContent = `✓ Design constraint satisfied (< 25 mg/dL) · R²=${r2.toFixed(2)}`;
+    DOM.rmseBadge.className = 'mt-2 inline-block text-[11px] font-medium px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+  } else {
+    DOM.rmseBadge.textContent = `RMSE ${rmse.toFixed(1)} mg/dL · R²=${r2.toFixed(2)}`;
+    DOM.rmseBadge.className = 'mt-2 inline-block text-[11px] font-medium px-2 py-1 rounded-md bg-amber-500/15 text-amber-400 border border-amber-500/30';
+  }
+  DOM.rmseSubtext.textContent = `Validación a 30 min sobre ${fuente}. RMSE/R² calculados con scikit-learn.`;
 }
 
 /* =========================================================================

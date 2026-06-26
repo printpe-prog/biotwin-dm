@@ -1,131 +1,161 @@
 /**
- * ui/formularioPaciente.js — Modal para crear y editar pacientes desde la UI.
+ * ui/formularioPaciente.js — Módulo de formulario para crear y editar pacientes.
  *
- * El mismo modal opera en dos modos según `_editandoId`:
- *   - crear  (null): registra un PacienteVirtual nuevo vía `agregarPaciente`.
- *   - editar (id):   actualiza uno existente vía `editarPaciente`.
- * Tras validar, persiste mediante la capa de datos y notifica al orquestador
- * con `alAgregar(indice)` o `alEditar(indice)`.
+ * Gestiona el modal #modalPaciente en sus dos modos: alta (nuevo paciente) y
+ * edición (paciente custom existente). Delega la persistencia a data/pacientes.js
+ * y notifica al orquestador (main.js) mediante callbacks.
  */
 
 import { DOM } from './dom.js';
 import { agregarPaciente, editarPaciente } from '../data/pacientes.js';
 import { log } from './consola.js';
 
-let _alAgregar = null;
-let _alEditar = null;
-let _editandoId = null;   // null = modo crear; id = modo editar
+let _callbacks = { alAgregar: () => {}, alEditar: () => {} };
 
-/** Cablea el botón "Nuevo paciente", el modal y el envío del formulario. */
-export function cablearFormularioPaciente({ alAgregar, alEditar }) {
-  _alAgregar = alAgregar;
-  _alEditar = alEditar;
-  DOM.btnNuevoPaciente.addEventListener('click', abrirFormulario);
-  DOM.formPaciente.addEventListener('submit', manejarSubmit);
+// id del paciente que se está editando, o null si es alta nueva.
+let _idEdicion = null;
 
-  // Cierre: botones marcados con data-cerrar, clic en el fondo y tecla Escape
-  DOM.modalPaciente.querySelectorAll('[data-cerrar]').forEach((b) => b.addEventListener('click', cerrarFormulario));
-  DOM.modalPaciente.addEventListener('click', (e) => { if (e.target === DOM.modalPaciente) cerrarFormulario(); });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !DOM.modalPaciente.classList.contains('hidden')) cerrarFormulario();
-  });
-}
+/* =========================================================================
+ * HELPERS
+ * ========================================================================= */
 
-/** Abre el modal en modo CREAR (formulario en blanco con valores por defecto). */
-function abrirFormulario() {
-  _editandoId = null;
-  DOM.formPaciente.reset();
-  DOM.modalPacienteTitulo.textContent = 'Nuevo Paciente Virtual';
-  DOM.btnGuardarPaciente.textContent = 'Guardar paciente';
-  DOM.formPacienteError.textContent = '';
-  _mostrarModal();
-}
-
-/** Abre el modal en modo EDITAR, precargando los datos del paciente dado. */
-export function abrirEdicionPaciente(perfil) {
-  _editandoId = perfil.id;
-  const f = DOM.formPaciente.elements;
-  const p = perfil.parametros;
-  f.alias.value = perfil.alias;
-  f.tipo.value = perfil.tipo;
-  f.glucosaBasal.value = p.glucosaBasal;
-  f.cr.value = p.CR;
-  f.isf.value = p.ISF;
-  f.tdd.value = p.TDD;
-  f.pico.value = p.pico_absorcion_cho;
-  f.variabilidad.value = p.variabilidad;
-  f.umbral.value = perfil.umbral_hipoglicemia_critica;
-  f.perfil.value = perfil.perfil_clinico || '';
-  DOM.modalPacienteTitulo.textContent = 'Editar Paciente Virtual';
-  DOM.btnGuardarPaciente.textContent = 'Guardar cambios';
-  DOM.formPacienteError.textContent = '';
-  _mostrarModal();
-}
-
-function _mostrarModal() {
-  const card = DOM.modalPaciente.querySelector('.modal-card');
+function abrirModal() {
   DOM.modalPaciente.classList.remove('hidden');
   requestAnimationFrame(() => {
     DOM.modalPaciente.classList.remove('opacity-0');
-    card.classList.remove('scale-95', 'opacity-0');
-    DOM.formPaciente.elements.alias.focus();
+    DOM.modalPaciente.querySelector('.modal-card').classList.remove('scale-95', 'opacity-0');
+    DOM.formPaciente.querySelector('[name="alias"]').focus();
   });
 }
 
-function cerrarFormulario() {
-  const card = DOM.modalPaciente.querySelector('.modal-card');
+function cerrarModal() {
   DOM.modalPaciente.classList.add('opacity-0');
-  card.classList.add('scale-95', 'opacity-0');
-  setTimeout(() => DOM.modalPaciente.classList.add('hidden'), 250);
-}
-
-const num = (el) => parseFloat(el.value);
-
-/** Lee y valida el formulario; según el modo, crea o actualiza el paciente. */
-function manejarSubmit(e) {
-  e.preventDefault();
-  const f = DOM.formPaciente.elements;
-  const datos = {
-    alias: f.alias.value.trim(),
-    tipo: f.tipo.value,
-    CR: num(f.cr), ISF: num(f.isf), TDD: num(f.tdd),
-    glucosaBasal: num(f.glucosaBasal), pico_absorcion_cho: num(f.pico),
-    variabilidad: num(f.variabilidad),
-    umbral_hipoglicemia_critica: num(f.umbral),
-    perfil_clinico: f.perfil.value.trim(),
-  };
-
-  const error = validar(datos);
-  if (error) { DOM.formPacienteError.textContent = error; return; }
-
-  if (_editandoId) {
-    const idx = editarPaciente(_editandoId, datos);
-    log('PATIENT', `Paciente actualizado: ${datos.alias}`, 'text-sky-400');
-    _editandoId = null;
-    cerrarFormulario();
-    if (idx !== -1 && _alEditar) _alEditar(idx);
-  } else {
-    const idx = agregarPaciente(datos);
-    log('PATIENT', `Nuevo paciente personalizado registrado: ${datos.alias}`, 'text-sky-400');
+  DOM.modalPaciente.querySelector('.modal-card').classList.add('scale-95', 'opacity-0');
+  setTimeout(() => {
+    DOM.modalPaciente.classList.add('hidden');
     DOM.formPaciente.reset();
-    cerrarFormulario();
-    if (_alAgregar) _alAgregar(idx);
-  }
+    DOM.formPacienteError.textContent = '';
+    _idEdicion = null;
+    DOM.modalPacienteTitulo.textContent = 'Nuevo Paciente Virtual';
+    DOM.btnGuardarPaciente.textContent = 'Guardar paciente';
+  }, 250);
 }
 
-/** Reglas clínicas mínimas. Devuelve un mensaje de error o null si es válido. */
-function validar(d) {
-  if (!d.alias) return 'El alias es obligatorio.';
-  const positivos = {
-    'CR': d.CR, 'ISF': d.ISF, 'TDD': d.TDD,
-    'pico de absorción': d.pico_absorcion_cho, 'umbral de seguridad': d.umbral_hipoglicemia_critica,
+/** Lee y normaliza los valores del formulario. */
+function leerFormulario() {
+  const fd = new FormData(DOM.formPaciente);
+  return {
+    alias: fd.get('alias').trim(),
+    tipo: fd.get('tipo'),
+    glucosaBasal: Number(fd.get('glucosaBasal')),
+    CR: Number(fd.get('cr')),
+    ISF: Number(fd.get('isf')),
+    TDD: Number(fd.get('tdd')),
+    pico_absorcion_cho: Number(fd.get('pico')),
+    variabilidad: Number(fd.get('variabilidad')),
+    umbral_hipoglicemia_critica: Number(fd.get('umbral')),
+    perfil_clinico: fd.get('perfil').trim(),
   };
-  for (const [k, v] of Object.entries(positivos)) {
-    if (!Number.isFinite(v) || v <= 0) return `El campo "${k}" debe ser un número mayor que 0.`;
-  }
-  if (!Number.isFinite(d.glucosaBasal) || d.glucosaBasal < 60 || d.glucosaBasal > 300)
-    return 'La glucosa basal debe estar entre 60 y 300 mg/dL.';
-  if (!Number.isFinite(d.variabilidad) || d.variabilidad < 0.01 || d.variabilidad > 0.5)
-    return 'La variabilidad debe estar entre 0.01 y 0.5.';
+}
+
+function validar(datos) {
+  if (!datos.alias) return 'El alias es obligatorio.';
+  if (datos.glucosaBasal < 50 || datos.glucosaBasal > 350) return 'Glucosa basal fuera de rango (50–350 mg/dL).';
+  if (datos.CR <= 0) return 'El ratio I:CHO (CR) debe ser mayor que 0.';
+  if (datos.ISF <= 0) return 'El ISF debe ser mayor que 0.';
+  if (datos.TDD <= 0) return 'La dosis diaria (TDD) debe ser mayor que 0.';
+  if (datos.variabilidad < 0.01 || datos.variabilidad > 0.5) return 'Variabilidad fuera de rango (0.01–0.5).';
+  if (datos.umbral_hipoglicemia_critica <= 0) return 'El umbral de seguridad debe ser mayor que 0.';
   return null;
+}
+
+/* =========================================================================
+ * LLENADO DEL FORMULARIO PARA EDICIÓN
+ * ========================================================================= */
+
+function llenarFormulario(p) {
+  const f = DOM.formPaciente;
+  f.querySelector('[name="alias"]').value = p.alias;
+  f.querySelector('[name="tipo"]').value = p.tipo;
+  f.querySelector('[name="glucosaBasal"]').value = p.parametros.glucosaBasal;
+  f.querySelector('[name="cr"]').value = p.parametros.CR;
+  f.querySelector('[name="isf"]').value = p.parametros.ISF;
+  f.querySelector('[name="tdd"]').value = p.parametros.TDD;
+  f.querySelector('[name="pico"]').value = p.parametros.pico_absorcion_cho;
+  f.querySelector('[name="variabilidad"]').value = p.parametros.variabilidad;
+  f.querySelector('[name="umbral"]').value = p.umbral_hipoglicemia_critica;
+  f.querySelector('[name="perfil"]').value = p.perfil_clinico || '';
+}
+
+/* =========================================================================
+ * API PÚBLICA
+ * ========================================================================= */
+
+/**
+ * Abre el modal en modo edición para un paciente custom existente.
+ * Llamado desde main.js al pulsar el botón de lápiz en la lista.
+ */
+export function abrirEdicionPaciente(p) {
+  _idEdicion = p.id;
+  DOM.modalPacienteTitulo.textContent = 'Editar Paciente Virtual';
+  DOM.btnGuardarPaciente.textContent = 'Guardar cambios';
+  llenarFormulario(p);
+  DOM.formPacienteError.textContent = '';
+  abrirModal();
+}
+
+/**
+ * Conecta todos los eventos del formulario y del botón "Nuevo paciente".
+ * Debe llamarse una sola vez desde main.js durante el arranque.
+ * @param {{ alAgregar: (idx: number) => void, alEditar: (idx: number) => void }} callbacks
+ */
+export function cablearFormularioPaciente(callbacks) {
+  _callbacks = callbacks;
+
+  // Botón "Nuevo paciente" — abre modal en modo alta
+  DOM.btnNuevoPaciente.addEventListener('click', () => {
+    _idEdicion = null;
+    DOM.modalPacienteTitulo.textContent = 'Nuevo Paciente Virtual';
+    DOM.btnGuardarPaciente.textContent = 'Guardar paciente';
+    DOM.formPaciente.reset();
+    DOM.formPacienteError.textContent = '';
+    abrirModal();
+  });
+
+  // Botones data-cerrar del modal
+  DOM.modalPaciente.querySelectorAll('[data-cerrar]').forEach((btn) => {
+    btn.addEventListener('click', cerrarModal);
+  });
+
+  // Cerrar con Escape (solo cuando el modal de fallback no está abierto)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !DOM.modalPaciente.classList.contains('hidden')) cerrarModal();
+  });
+
+  // Cerrar al pulsar el fondo del overlay
+  DOM.modalPaciente.addEventListener('click', (e) => {
+    if (e.target === DOM.modalPaciente) cerrarModal();
+  });
+
+  // Submit del formulario
+  DOM.formPaciente.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const datos = leerFormulario();
+    const error = validar(datos);
+    if (error) { DOM.formPacienteError.textContent = error; return; }
+    DOM.formPacienteError.textContent = '';
+
+    if (_idEdicion) {
+      const idx = editarPaciente(_idEdicion, datos);
+      if (idx === -1) { DOM.formPacienteError.textContent = 'Error al guardar los cambios.'; return; }
+      log('PATIENT', `Paciente personalizado editado: ${_idEdicion}`, 'text-sky-400');
+      cerrarModal();
+      _callbacks.alEditar(idx);
+    } else {
+      const idx = agregarPaciente(datos);
+      log('PATIENT', `Nuevo paciente creado: ${datos.alias}`, 'text-emerald-400');
+      cerrarModal();
+      _callbacks.alAgregar(idx);
+    }
+  });
 }

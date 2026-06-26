@@ -77,19 +77,19 @@
   <!-- ============================================================= -->
   <!-- LAYOUT PRINCIPAL                                              -->
   <!-- ============================================================= -->
-  <main class="max-w-[1800px] mx-auto px-5 py-5">
-    <div class="grid grid-cols-1 lg:grid-cols-[minmax(340px,30%)_1fr] gap-5">
+  <main class="max-w-[1800px] mx-auto px-5 py-4">
+    <div class="grid grid-cols-1 lg:grid-cols-[minmax(320px,27%)_1fr] gap-4">
 
       <!-- ===================== PANEL DE CONTROL (IZQUIERDA) ===================== -->
-      <aside class="space-y-5">
+      <aside class="space-y-4">
 
         <!-- Selector de Paciente Virtual -->
-        <section class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-4">
-          <div class="flex items-center gap-2 mb-3">
+        <section class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
+          <div class="flex items-center gap-2 mb-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"/><path d="M12 14a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7Z"/></svg>
             <h2 class="text-sm font-semibold text-slate-200">Paciente Virtual</h2>
           </div>
-          <div id="selectorPacientes" class="grid grid-cols-1 gap-2"></div>
+          <div id="selectorPacientes"></div>
           <button id="btnNuevoPaciente"
             class="mt-3 w-full border border-dashed border-slate-600 hover:border-sky-500/60 hover:text-sky-400 text-slate-400 text-xs font-medium py-2.5 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -98,18 +98,18 @@
         </section>
 
         <!-- Ficha clínica del perfil cargado -->
-        <section class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-4">
-          <div class="flex items-center gap-2 mb-3">
+        <section class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
+          <div class="flex items-center gap-2 mb-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
             <h2 class="text-sm font-semibold text-slate-200">Ficha del Gemelo Digital</h2>
           </div>
-          <p id="perfilClinico" class="text-xs text-slate-400 leading-relaxed mb-3">—</p>
-          <div id="perfilParametros" class="grid grid-cols-2 gap-2 text-xs font-mono"></div>
+          <p id="perfilClinico" class="text-xs text-slate-400 leading-relaxed mb-3 line-clamp-3">—</p>
+          <div id="perfilParametros" class="grid grid-cols-3 gap-1.5 text-[11px] font-mono"></div>
         </section>
 
         <!-- Controles de simulación -->
-        <section class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-4">
-          <div class="flex items-center gap-2 mb-3">
+        <section class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
+          <div class="flex items-center gap-2 mb-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
             <h2 class="text-sm font-semibold text-slate-200">Evento Terapéutico</h2>
           </div>
@@ -142,19 +142,19 @@
         </section>
 
         <!-- Consola de Seguridad Biomédica -->
-        <section class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-4">
-          <div class="flex items-center gap-2 mb-3">
+        <section class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
+          <div class="flex items-center gap-2 mb-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
             <h2 class="text-sm font-semibold text-slate-200">Control Terapéutico</h2>
           </div>
 
           <div class="flex items-center justify-between p-3 rounded-lg bg-slate-900/70 border border-slate-700">
             <div>
-              <p class="text-xs text-slate-300 font-medium">Agente RL</p>
-              <p class="text-[10px] text-slate-500 font-mono">Stable-Baselines3 Policy</p>
+              <p class="text-xs text-slate-300 font-medium">Control con IA</p>
+              <p class="text-[10px] text-slate-500">Optimiza insulina automáticamente</p>
             </div>
             <div class="flex items-center gap-3">
-              <span id="badgeRL" class="text-[10px] font-mono px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">RL Activo</span>
+              <span id="badgeRL" class="text-[10px] font-mono px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">IA Activa</span>
               <div id="toggleRL" class="switch on" role="switch" aria-checked="true" tabindex="0">
                 <span class="knob"></span>
               </div>
@@ -165,7 +165,7 @@
           <button id="btnOhio"
             class="w-full mt-3 bg-slate-700 hover:bg-slate-600 text-slate-100 text-sm font-medium py-2.5 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Cargar Dataset OhioT1DM (Pac. 559)
+            Validar predicción glucémica
           </button>
           <div id="pipelineStatus" class="hidden mt-2 items-center gap-2 text-[11px] text-sky-400 font-mono">
             <span class="spinner"></span>
@@ -175,10 +175,10 @@
       </aside>
 
       <!-- ===================== ÁREA DE VISUALIZACIÓN (DERECHA) ===================== -->
-      <section class="space-y-5">
+      <section class="space-y-4">
 
         <!-- Gráfico principal -->
-        <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-4">
+        <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
           <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
             <div class="flex items-center gap-2">
               <h2 class="text-sm font-semibold text-slate-200">Trayectoria Glucémica</h2>
@@ -197,7 +197,7 @@
               <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 border-t border-dashed border-amber-400"></span>180</span>
             </div>
           </div>
-          <div style="position:relative; height:46vh; min-height:340px;">
+          <div style="position:relative; height:30vh; min-height:230px;">
             <canvas id="graficoPrincipal"></canvas>
           </div>
         </div>
@@ -210,10 +210,10 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
 
           <!-- KPI 1: Time In Range -->
-          <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-4">
+          <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
             <p class="text-[11px] text-slate-400 uppercase tracking-wide">Time In Range</p>
             <p class="mt-1 flex items-baseline gap-1">
-              <span id="tirValor" class="text-3xl font-mono font-semibold text-emerald-400 tnum">—</span>
+              <span id="tirValor" class="text-2xl font-mono font-semibold text-emerald-400 tnum">—</span>
               <span class="text-sm text-slate-500">%</span>
             </p>
             <div class="mt-2 h-2 rounded-full bg-slate-700 overflow-hidden">
@@ -223,10 +223,10 @@
           </div>
 
           <!-- KPI 2: Time Below Range -->
-          <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-4">
+          <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
             <p class="text-[11px] text-slate-400 uppercase tracking-wide">Time Below Range</p>
             <p class="mt-1 flex items-baseline gap-1">
-              <span id="tbrValor" class="text-3xl font-mono font-semibold text-emerald-400 tnum">—</span>
+              <span id="tbrValor" class="text-2xl font-mono font-semibold text-emerald-400 tnum">—</span>
               <span class="text-sm text-slate-500">%</span>
             </p>
             <div class="mt-2 h-2 rounded-full bg-slate-700 overflow-hidden">
@@ -236,10 +236,10 @@
           </div>
 
           <!-- KPI 3: Predictive Error (RMSE) — valor fijo de referencia -->
-          <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-4">
+          <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
             <p class="text-[11px] text-slate-400 uppercase tracking-wide">Predictive Error (RMSE)</p>
             <p class="mt-1 flex items-baseline gap-1">
-              <span id="rmseValor" class="text-3xl font-mono font-semibold text-sky-400 tnum">18.5</span>
+              <span id="rmseValor" class="text-2xl font-mono font-semibold text-sky-400 tnum">18.5</span>
               <span class="text-sm text-slate-500">mg/dL</span>
             </p>
             <span id="rmseBadge" class="mt-2 inline-block text-[11px] font-medium px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
@@ -251,7 +251,7 @@
           </div>
 
           <!-- KPI 4: Clinical Decision Support -->
-          <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-4">
+          <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
             <p class="text-[11px] text-slate-400 uppercase tracking-wide">Clinical Decision Support</p>
             <p id="decisionTexto" class="mt-2 text-xs text-slate-300 leading-relaxed">
               Load a profile and run a simulation to obtain recommendations.
@@ -280,7 +280,7 @@
               </button>
             </div>
           </div>
-          <div id="terminal" class="terminal p-3 h-56 overflow-y-auto"></div>
+          <div id="terminal" class="terminal p-3 h-28 overflow-y-auto"></div>
         </div>
       </section>
     </div>

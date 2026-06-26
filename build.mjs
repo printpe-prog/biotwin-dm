@@ -21,7 +21,7 @@ const MODULOS = [
   'js/config.js', 'js/state.js', 'js/core/random.js', 'js/core/tiempo.js',
   'js/data/pacientes.js', 'js/engine/simulador.js', 'js/pipeline/ohio.js',
   'js/ui/dom.js', 'js/ui/kpis.js', 'js/ui/consola.js', 'js/ui/grafico.js',
-  'js/ui/modal.js', 'js/ui/formularioPaciente.js', 'js/main.js',
+  'js/ui/modal.js', 'js/ui/formularioPaciente.js', 'js/api.js', 'js/main.js',
 ];
 
 /** Elimina las sentencias import (incluso multilínea) y el prefijo `export `. */

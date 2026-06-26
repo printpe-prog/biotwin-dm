@@ -26,6 +26,41 @@ body { color: #e2e8f0; }
   border-color: #38bdf8;
 }
 
+/* Selector de paciente (desplegable agrupado) */
+.selector-paciente {
+  width: 100%;
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  padding: 0.6rem 2rem 0.6rem 0.7rem;
+  font-size: 0.8rem;
+  color: #e2e8f0;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+  transition: border-color .25s ease, box-shadow .25s ease;
+}
+.selector-paciente:hover { border-color: #475569; }
+.selector-paciente:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+}
+.selector-paciente optgroup {
+  background: #0f172a;
+  color: #38bdf8;
+  font-weight: 600;
+  font-style: normal;
+}
+.selector-paciente option {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 6px;
+}
+
 /* Scrollbar minimalista para tema oscuro */
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-track { background: #0f172a; }

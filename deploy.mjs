@@ -17,6 +17,7 @@ const PORT = 21;
 const USER = 'biotwin@hostlan.cl';
 const PASS = process.env.FTP_PASS;
 const ARCHIVO = 'BioTwin_DM_Prototype_v1.html';
+const RUTA_SERVIDOR = 'public_html/biotwin/index.html'; // ruta pública en el servidor
 
 if (!PASS) {
   console.error('❌  Falta la contraseña FTP.');
@@ -35,12 +36,12 @@ try {
 console.log(`\n→ Conectando a ${HOST}:${PORT} como ${USER}...`);
 
 // curl soporta FTPS explícito (--ssl) y está disponible en Windows 10/11
-const cmd = `curl --ssl --ftp-create-dirs -u "${USER}:${PASS}" -T "${ARCHIVO}" "ftp://${HOST}/${ARCHIVO}" --progress-bar`;
+const cmd = `curl --ssl --ftp-create-dirs -u "${USER}:${PASS}" -T "${ARCHIVO}" "ftp://${HOST}/${RUTA_SERVIDOR}" --progress-bar`;
 
 try {
   execSync(cmd, { stdio: 'inherit' });
-  console.log(`\n✓ Deploy exitoso: ${ARCHIVO} → ftp://${HOST}/${ARCHIVO}`);
-  console.log(`  Producción: http://${HOST.replace('ftp.', '')}/`);
+  console.log(`\n✓ Deploy exitoso: ${ARCHIVO} → ftp://${HOST}/${RUTA_SERVIDOR}`);
+  console.log(`  Producción: http://${HOST.replace('ftp.', '')}/biotwin/`);
 } catch {
   console.error('\n❌  Error durante el upload FTP. Verifica credenciales y conectividad.');
   process.exit(1);

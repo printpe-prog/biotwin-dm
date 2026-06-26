@@ -247,6 +247,47 @@ export function renderSimulacion(perfil, gCHO, uInsulina, esFallback) {
   updateAllMetrics();
 }
 
+/**
+ * Dibuja una trayectoria devuelta por el BACKEND (motor real UVA/Padova).
+ * `puntos` = [{ t_min, glucosa, ... }]. Colorea por rango glucémico.
+ */
+export function renderTrayectoria(puntos, etiquetaModo, tono) {
+  const labels = puntos.map((p) => etiquetaTiempo(p.t_min));
+  const vals = puntos.map((p) => p.glucosa);
+  chart.data.labels = labels;
+  chart.data.datasets = [
+    {
+      label: 'Predicción gemelo digital (UVA/Padova)', data: vals,
+      borderColor: COLORES.euglucemia, backgroundColor: COLORES.euglucemia,
+      borderWidth: 2.5, pointRadius: 0, tension: 0.35, spanGaps: false, order: 1,
+      segment: { borderColor: (c) => colorPorGlucosa((c.p0.parsed.y + c.p1.parsed.y) / 2) },
+    },
+  ];
+  chart.options.plugins.annotation.annotations = lineasReferencia();
+  fijarSeriesYActualizar();
+  estado.curvaActual = { valores: vals, ultimo: vals[vals.length - 1] };
+  setBadgeModo(etiquetaModo, tono);
+}
+
+/** Dibuja la validación (OE4): serie real vs predicha del backend. */
+export function renderValidacion(labels, serieReal, seriePred) {
+  chart.data.labels = labels;
+  chart.data.datasets = [
+    {
+      label: 'Serie de referencia (CGM)', data: serieReal,
+      borderColor: COLORES.neutral, backgroundColor: COLORES.neutral,
+      borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: false, order: 1,
+    },
+    {
+      label: 'Predicción gemelo digital', data: seriePred,
+      borderColor: COLORES.interp, backgroundColor: COLORES.interp,
+      borderWidth: 2, borderDash: [5, 4], pointRadius: 0, tension: 0.3, spanGaps: false, order: 0,
+    },
+  ];
+  chart.options.plugins.annotation.annotations = lineasReferencia();
+  fijarSeriesYActualizar();
+}
+
 /** Dibuja la serie cruda de OhioT1DM (con gaps y spikes). */
 export function renderOhioRaw(raw, labels) {
   chart.data.labels = labels;
