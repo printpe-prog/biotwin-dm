@@ -12,15 +12,20 @@ Ejecutar:
 
 from __future__ import annotations
 
+import base64
+import os
+import secrets
 import warnings
 
 warnings.filterwarnings("ignore")
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, Response
+from fastapi.staticfiles import StaticFiles
 
 from . import __version__
-from .config import CORS_ORIGINS, METAS
+from .config import CORS_ORIGINS, FRONTEND_DIR, METAS
 from .engine.pacientes import listar_perfiles, obtener_perfil
 from .engine.simulador import simular
 from .modelos import (
@@ -47,6 +52,33 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Acceso privado opcional (HTTP Basic Auth) ---
+# Se activa SOLO si BIOTWIN_PASS está definida en el entorno. Sirve para exponer
+# la app por un túnel (Cloudflare/ngrok) sin que sea pública. En local, sin esa
+# variable, no pide contraseña.
+_AUTH_USER = os.getenv("BIOTWIN_USER", "biotwin")
+_AUTH_PASS = os.getenv("BIOTWIN_PASS")
+
+
+@app.middleware("http")
+async def _basic_auth(request: Request, call_next):
+    if _AUTH_PASS and request.method != "OPTIONS":
+        cabecera = request.headers.get("Authorization", "")
+        autorizado = False
+        if cabecera.startswith("Basic "):
+            try:
+                usuario, _, clave = base64.b64decode(cabecera[6:]).decode("utf-8").partition(":")
+                autorizado = secrets.compare_digest(usuario, _AUTH_USER) and secrets.compare_digest(clave, _AUTH_PASS)
+            except Exception:
+                autorizado = False
+        if not autorizado:
+            return Response(
+                status_code=401,
+                headers={"WWW-Authenticate": 'Basic realm="BioTwin-DM"'},
+                content="Acceso restringido.",
+            )
+    return await call_next(request)
 
 
 @app.get("/salud")
@@ -105,3 +137,17 @@ def simular_endpoint(req: SimulacionRequest) -> dict:
 def validar_endpoint(req: ValidacionRequest) -> dict:
     """Valida el gemelo digital contra el dataset (OE4): RMSE y R² reales."""
     return validar_ohio(req.patient_id, req.horizonte_pred_min)
+
+
+# ======================== Frontend (modo unificado) ========================
+# FastAPI sirve también la SPA en el MISMO origen, de modo que un único puerto
+# (8001) entrega tanto la API como la interfaz. Esto permite exponer toda la app
+# por un solo túnel y evita problemas de CORS. Solo se publican js/ y css/ — el
+# resto del repo (backend/, datos/ohio con licencia DUA, .git) NO se expone.
+app.mount("/js", StaticFiles(directory=str(FRONTEND_DIR / "js")), name="js")
+app.mount("/css", StaticFiles(directory=str(FRONTEND_DIR / "css")), name="css")
+
+
+@app.get("/", include_in_schema=False)
+def _index() -> FileResponse:
+    return FileResponse(str(FRONTEND_DIR / "index.html"))

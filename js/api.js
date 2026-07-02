@@ -6,7 +6,15 @@
  * motor JavaScript local (modo offline / build portable).
  */
 
-const BASE = (window.BIOTWIN_API_URL || 'http://localhost:8001').replace(/\/$/, '');
+// Resolución del backend:
+//  - Override explícito: window.BIOTWIN_API_URL (cualquier valor, incl. '').
+//  - Servido por FastAPI (http/https, modo unificado o túnel): mismo origen.
+//  - Abierto como archivo (monolito file://): localhost:8001 con fallback offline.
+const BASE = (
+  window.BIOTWIN_API_URL != null
+    ? window.BIOTWIN_API_URL
+    : (location.protocol.startsWith('http') ? location.origin : 'http://localhost:8001')
+).replace(/\/$/, '');
 
 export const api = {
   base: BASE,

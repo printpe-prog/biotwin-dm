@@ -9,6 +9,7 @@ from pathlib import Path
 
 # --- Rutas del proyecto ---
 BACKEND_DIR = Path(__file__).resolve().parent.parent
+FRONTEND_DIR = BACKEND_DIR.parent  # raíz del repo: index.html, js/, css/
 MODELOS_DIR = BACKEND_DIR / "modelos_entrenados"
 DATOS_DIR = BACKEND_DIR / "datos"
 OHIO_DIR = DATOS_DIR / "ohio"

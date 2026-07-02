@@ -13,3 +13,7 @@ __*
 _*.mjs
 package.json
 package-lock.json
+
+# Temporales de túnel (contraseñas generadas, logs de cloudflared/ssh)
+_*.txt
+_*.log
