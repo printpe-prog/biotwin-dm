@@ -1,136 +1,97 @@
-# BioTwin-DM · Prototipo de Producción
+# BioTwin-DM
 
-**Plataforma de Simulación Predictiva basada en Gemelos Digitales para la
-Optimización de la Terapia de Insulina en Pacientes con Diabetes Tipo 1.**
+> **Plataforma de simulación predictiva basada en gemelos digitales para la optimización de la terapia de insulina en pacientes con Diabetes Tipo 1.**
 
-Proyecto de título — Universidad Andrés Bello · Portafolio de Proyectos (INSW410).
+<p align="left">
+  <img src="https://img.shields.io/badge/status-en%20construcci%C3%B3n-orange" alt="status: en construcción">
+  <img src="https://img.shields.io/badge/proyecto-tesis%20de%20t%C3%ADtulo-1F4E79" alt="proyecto de título">
+  <img src="https://img.shields.io/badge/universidad-UNAB-2E75B6" alt="UNAB">
+</p>
 
 ---
 
-## Dos modos de ejecución
+> ### 🚧 Proyecto en construcción
+> Este es un **proyecto de título en desarrollo activo** (Ingeniería en Computación e Informática, Universidad Andrés Bello). El código, la documentación y los resultados pueden cambiar sin previo aviso mientras avanza la investigación. Se comparte públicamente con fines de **portafolio y transparencia académica** — no está pensado para uso clínico ni en producción.
 
-El proyecto funciona en dos modos complementarios:
+---
 
-| Modo | Motor | Cómo |
-|------|-------|------|
-| **Completo (backend real)** | **simglucose (UVA/Padova, FDA) + agente RL real (Stable-Baselines3) + validación OhioT1DM + cifrado Fernet real** | Levantar el backend Python (ver [`backend/README.md`](backend/README.md)) y luego el frontend |
-| **Offline (portable)** | Motor JavaScript local (modelo compartimental RK4) + cifrado simulado | Solo el frontend; abre el build de un archivo o sirve `index.html` |
+## ¿Qué hace?
 
-El frontend detecta el backend automáticamente: si responde en
-`http://localhost:8001`, usa el **motor real**; si no, cae al **motor local**.
+BioTwin-DM simula, **antes de que ocurra**, cómo va a responder la glucosa de un paciente con Diabetes Tipo 1 ante una dosis de insulina. Combina:
 
-### Arranque del modo completo
+- Un **motor fisiológico** basado en el modelo UVA/Padova (`simglucose`), el mismo estándar in-silico aprobado por la FDA para probar dispositivos de insulina.
+- Un **agente de aprendizaje por refuerzo** (PPO, Stable-Baselines3) que sugiere ajustes de insulina basal manteniendo al paciente en rango seguro.
+- Un **predictor glucémico** validado contra pacientes reales del dataset OhioT1DM.
+- Un **mecanismo de seguridad por diseño**: si una dosis supera el umbral clínico del paciente, el sistema anula la IA automáticamente y conmuta a un controlador clásico.
+
+La idea central: **anticipar para proteger** — mostrar el efecto de una decisión antes de tomarla.
+
+## Resultados actuales
+
+| Métrica | Meta | Resultado |
+|---|---|---|
+| Tiempo en rango (TIR) | > 80 % | **98.3 %** |
+| Error de predicción (RMSE) | < 25 mg/dL | **10.0 mg/dL** |
+| Ajuste del modelo (R²) | ≥ 0.85 | **0.899** |
+| Perfiles virtuales | ≥ 10 | **30** (niños, adolescentes, adultos) |
+
+## Dos formas de ejecutarlo
+
+| Modo | Motor | Uso |
+|------|-------|-----|
+| **Completo** | Backend Python real: `simglucose` + agente RL + validación OhioT1DM + cifrado Fernet | Requiere levantar el backend (ver [`backend/README.md`](backend/README.md)) |
+| **Offline / portable** | Motor JavaScript local (modelo compartimental RK4) | Solo el frontend — abre `BioTwin_DM_Prototype_v1.html` o sirve `index.html` |
+
+El frontend detecta el backend automáticamente: si responde en `localhost:8001` usa el motor real; si no, cae al motor local.
+
+### Arranque rápido (modo completo)
 
 ```powershell
-# Terminal 1 — backend (motor real)
+# Terminal 1 — backend
 cd backend
 python -m venv venv
 venv\Scripts\python -m pip install -r requirements.txt
-venv\Scripts\python -m app.rl.entrenar --patient adult#001 --timesteps 250000   # entrena el RL (una vez)
 venv\Scripts\uvicorn app.main:app --port 8001
 
 # Terminal 2 — frontend
 node dev-server.mjs        # http://localhost:8000
 ```
 
----
+### Solo quiero verlo, sin instalar nada
 
-## Cómo ejecutar
+Abre **`BioTwin_DM_Prototype_v1.html`** — es el prototipo empaquetado en un único archivo autocontenido, con doble clic funciona.
 
-Esta versión usa **módulos ES** (`import`/`export`), por lo que **no se abre con
-doble clic** (el navegador bloquea los módulos cargados desde `file://`).
-Necesitas servirlo desde un servidor local. Cualquiera de estas opciones sirve:
+## Stack técnico
 
-### Opción A — Servidor incluido (Node, sin dependencias) — recomendada
-```bash
-# Desde la carpeta del proyecto:
-node dev-server.mjs
-# Luego abre en el navegador:
-#   http://localhost:8000
-```
-
-### Opción B — VSCode Live Server
-1. Instala la extensión **Live Server**.
-2. Clic derecho sobre `index.html` → **"Open with Live Server"**.
-3. Se abre en `http://127.0.0.1:5500/index.html`.
-
-### Opción C — Python (solo si lo tienes instalado)
-```bash
-python -m http.server 8000   # → http://localhost:8000
-```
-
-> **Requiere conexión a internet:** Tailwind, Chart.js y el plugin de
-> anotaciones se cargan por CDN. Si no cargan, la app muestra un aviso visible.
-
-### ¿Necesitas abrir con doble clic, sin servidor?
-Usa el archivo **`BioTwin_DM_Prototype_v1.html`**, que es el mismo prototipo
-empaquetado como **un único archivo autocontenido** (build portable). Ideal
-para enviar por correo o abrir en un equipo sin herramientas.
-
----
+| Capa | Tecnología |
+|---|---|
+| Motor fisiológico | Python · `simglucose` (UVA/Padova, FDA) |
+| Agente de IA | Stable-Baselines3 (PPO) |
+| Backend | FastAPI |
+| Frontend | JavaScript ES2022 (módulos nativos) · Chart.js 4.x |
+| Estilos | Tailwind CSS |
+| Seguridad | Cifrado Fernet (AES-128-CBC + HMAC) — Ley 19.628 / 21.719 |
 
 ## Estructura del proyecto
 
 ```
 biotwin/
-├── index.html                 # Punto de entrada (estructura + CDN)
-├── css/
-│   └── styles.css             # Estilos propios (complementan Tailwind)
-├── js/
-│   ├── config.js              # Constantes del dominio, paleta, metas clínicas
-│   ├── state.js               # Estado mutable centralizado de la app
-│   ├── core/
-│   │   ├── random.js          # PRNG determinista, ruido gaussiano, base64
-│   │   └── tiempo.js          # Etiquetas de tiempo y timestamps
-│   ├── data/
-│   │   └── pacientes.js       # Modelo de datos (Módulo 1): perfiles y sesión
-│   ├── engine/
-│   │   └── simulador.js       # Motor fisiológico (Módulo 2): CHO + insulina
-│   ├── pipeline/
-│   │   └── ohio.js            # Pipeline OhioT1DM (Módulo 4): gaps y suavizado
-│   └── ui/
-│       ├── dom.js             # Cache de referencias DOM
-│       ├── grafico.js         # Capa Chart.js (posee la instancia del gráfico)
-│       ├── kpis.js            # Métricas clínicas (Módulo 6): TIR, TBR, decisión
-│       ├── consola.js         # Consola criptográfica (Módulo 5)
-│       └── modal.js           # Control RL/PID y fallback (Módulo 3)
-│   └── main.js                # Orquestación: eventos, arranque, flujo
-├── dev-server.mjs             # Servidor estático de desarrollo (Node, sin deps)
-├── BioTwin_DM_Prototype_v1.html   # Build portable de un solo archivo
-└── README.md
+├── backend/                   # Motor fisiológico, agente RL, API
+├── index.html                 # Punto de entrada del frontend
+├── js/                        # Módulos ES (config, engine, ui, pipeline)
+├── css/                       # Estilos propios
+├── dev-server.mjs             # Servidor estático de desarrollo
+└── BioTwin_DM_Prototype_v1.html   # Build portable de un solo archivo
 ```
 
-### Capas y dependencias
+## Alcance y limitaciones
 
-El flujo de dependencias es unidireccional (sin ciclos):
+- Funciona en **simulación**, no con pacientes reales.
+- Usa 30 perfiles virtuales del simulador UVA/Padova, más parámetros clínicos derivados de 12 pacientes del dataset OhioT1DM (los datos originales del dataset **no se incluyen** en este repositorio por su Acuerdo de Uso de Datos).
+- **No reemplaza el criterio médico** — es una herramienta de apoyo a la decisión terapéutica.
 
-```
-config / state / core / data      (módulos hoja, sin dependencias de la app)
-        ↓
-engine · pipeline · ui/dom · ui/kpis · ui/consola
-        ↓
-ui/grafico · ui/modal
-        ↓
-main.js  (orquesta todo; nadie lo importa)
-```
+## Marco de referencia
 
-El estado mutable vive en `state.js`; la instancia de Chart.js está encapsulada
-en `ui/grafico.js` y solo se expone mediante funciones de render.
-
----
-
-## Stack técnico
-
-| Capa     | Tecnología                                   |
-|----------|----------------------------------------------|
-| Estilos  | Tailwind CSS (Play CDN) + `css/styles.css`   |
-| Gráficos | Chart.js 4.x + `chartjs-plugin-annotation`   |
-| Lógica   | JavaScript ES2022 (módulos nativos)          |
-
----
-
-## Validación de las métricas (criterios clínicos de diseño)
-
-- **TIR** > 80 %  ·  **TBR** < 4 %  ·  **RMSE** < 25 mg/dL
-- Dataset de referencia: **OhioT1DM** (Marling & Bunescu, 2020)
-- Marco legal: **Ley N° 19.628** y **Ley N° 21.719**
+- Dataset de validación: **OhioT1DM** (Marling & Bunescu, 2020)
+- Marco legal de protección de datos: **Ley N.º 19.628** y **Ley N.º 21.719** (Chile)
+- Proyecto de título — Universidad Andrés Bello · Ingeniería en Computación e Informática

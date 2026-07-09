@@ -17,3 +17,8 @@ package-lock.json
 # Temporales de túnel (contraseñas generadas, logs de cloudflared/ssh)
 _*.txt
 _*.log
+
+# Dataset OhioT1DM (restringido por Data Use Agreement — nunca debe subirse)
+OhioT1DM.zip
+OhioT1DM/
+*.xml
