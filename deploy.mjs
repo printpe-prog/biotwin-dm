@@ -12,16 +12,17 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
 
-const HOST = 'ftp.hostlan.cl';
+const HOST = process.env.FTP_HOST || 'ftp.hostlan.cl';
 const PORT = 21;
-const USER = 'biotwin@hostlan.cl';
+// Credenciales por variable de entorno: no se versionan en un repo público.
+const USER = process.env.FTP_USER;
 const PASS = process.env.FTP_PASS;
 const ARCHIVO = 'BioTwin_DM_Prototype_v1.html';
 const RUTA_SERVIDOR = 'public_html/biotwin/index.html'; // ruta pública en el servidor
 
-if (!PASS) {
-  console.error('❌  Falta la contraseña FTP.');
-  console.error('    Uso: FTP_PASS=tupassword node deploy.mjs');
+if (!USER || !PASS) {
+  console.error('❌  Faltan las credenciales FTP.');
+  console.error('    Uso: FTP_USER=usuario FTP_PASS=contraseña node deploy.mjs');
   process.exit(1);
 }
 
