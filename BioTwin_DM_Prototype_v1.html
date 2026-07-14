@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="BioTwin-DM: plataforma de simulación predictiva basada en gemelos digitales para optimizar la terapia de insulina en Diabetes Tipo 1. Motor UVA/Padova (FDA) + agente de aprendizaje por refuerzo." />
   <title>BioTwin-DM · Plataforma de Simulación Predictiva (Gemelo Digital T1DM)</title>
+
+  <!-- Favicon incrustado (glifo del gemelo digital, sin petición externa) -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2334d399' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12h4l2 6 4-12 2 6h6'/%3E%3C/svg%3E" />
 
   <!-- ============================================================= -->
   <!-- DEPENDENCIAS VÍA CDN                                          -->
@@ -158,6 +162,33 @@ body { color: #e2e8f0; }
 
 /* Números tabulares para datos clínicos */
 .tnum { font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------------------
+ * Accesibilidad
+ * ------------------------------------------------------------------------- */
+
+/* Anillo de foco visible para navegación por teclado. Se usa :focus-visible
+ * para no mostrarlo en clics de ratón, solo cuando el usuario navega con Tab. */
+button:focus-visible,
+a:focus-visible,
+.switch:focus-visible,
+input[type="range"]:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Respeta la preferencia del sistema de reducir el movimiento: desactiva las
+ * animaciones decorativas (punto pulsante, spinner, transiciones largas) para
+ * usuarios con sensibilidad vestibular. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .status-dot { animation: none; }
+}
   </style>
 </head>
 
@@ -244,6 +275,7 @@ body { color: #e2e8f0; }
                 <span class="font-mono text-amber-400"><span id="valCHO">60</span> g</span>
               </label>
               <input id="inputCHO" type="range" min="0" max="120" step="5" value="60"
+                     aria-label="Carbohidratos ingeridos, en gramos"
                      class="w-full accent-amber-400 cursor-pointer">
             </div>
 
@@ -253,13 +285,14 @@ body { color: #e2e8f0; }
                 <span class="font-mono text-sky-400"><span id="valInsulina">4.0</span> U</span>
               </label>
               <input id="inputInsulina" type="range" min="0" max="25" step="0.5" value="4"
+                     aria-label="Bolo de insulina, en unidades"
                      class="w-full accent-sky-400 cursor-pointer">
             </div>
 
             <button id="btnSimular"
-              class="w-full mt-1 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-sm font-medium py-2.5 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">
+              class="w-full mt-1 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-medium py-2.5 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>
-              Ejecutar Simulación Predictiva
+              <span id="btnSimularLabel">Ejecutar Simulación Predictiva</span>
             </button>
           </div>
         </section>
@@ -278,7 +311,8 @@ body { color: #e2e8f0; }
             </div>
             <div class="flex items-center gap-3">
               <span id="badgeRL" class="text-[10px] font-mono px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">IA Activa</span>
-              <div id="toggleRL" class="switch on" role="switch" aria-checked="true" tabindex="0">
+              <div id="toggleRL" class="switch on" role="switch" aria-checked="true" tabindex="0"
+                   aria-label="Activar control con inteligencia artificial (agente RL)">
                 <span class="knob"></span>
               </div>
             </div>
@@ -1086,7 +1120,7 @@ function cacheDOM() {
   const ids = [
     'estadoDot', 'estadoConexion',
     'selectorPacientes', 'btnNuevoPaciente', 'perfilClinico', 'perfilParametros', 'valCHO', 'valInsulina',
-    'inputCHO', 'inputInsulina', 'btnSimular', 'badgeRL', 'toggleRL', 'btnOhio',
+    'inputCHO', 'inputInsulina', 'btnSimular', 'btnSimularLabel', 'badgeRL', 'toggleRL', 'btnOhio',
     'pipelineStatus', 'graficoPrincipal', 'badgeModo', 'btnEjeDetalle', 'btnEjeHora',
     'tirValor', 'tirBarra', 'tirBadge',
     'tbrValor', 'tbrBarra', 'rmseValor', 'rmseBadge', 'rmseSubtext', 'decisionTexto',
@@ -2313,6 +2347,7 @@ function continuarConFallbackBackend() {
 
 async function correrBackend(p, gCHO, uIns, usarRL, esFallback) {
   DOM.btnSimular.disabled = true;
+  if (DOM.btnSimularLabel) DOM.btnSimularLabel.textContent = 'Simulando…';
   try {
     const res = await apiSimular({
       patient_name: p.simglucose_name, cho_g: gCHO, bolus_u: uIns,
@@ -2330,6 +2365,7 @@ async function correrBackend(p, gCHO, uIns, usarRL, esFallback) {
     log('ERROR', 'Fallo en la simulación: ' + e.message, 'text-rose-400');
   } finally {
     DOM.btnSimular.disabled = false;
+    if (DOM.btnSimularLabel) DOM.btnSimularLabel.textContent = 'Ejecutar Simulación Predictiva';
   }
 }
 

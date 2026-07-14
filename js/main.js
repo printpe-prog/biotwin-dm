@@ -341,6 +341,7 @@ function continuarConFallbackBackend() {
 
 async function correrBackend(p, gCHO, uIns, usarRL, esFallback) {
   DOM.btnSimular.disabled = true;
+  if (DOM.btnSimularLabel) DOM.btnSimularLabel.textContent = 'Simulando…';
   try {
     const res = await apiSimular({
       patient_name: p.simglucose_name, cho_g: gCHO, bolus_u: uIns,
@@ -358,6 +359,7 @@ async function correrBackend(p, gCHO, uIns, usarRL, esFallback) {
     log('ERROR', 'Fallo en la simulación: ' + e.message, 'text-rose-400');
   } finally {
     DOM.btnSimular.disabled = false;
+    if (DOM.btnSimularLabel) DOM.btnSimularLabel.textContent = 'Ejecutar Simulación Predictiva';
   }
 }
 

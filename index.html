@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="BioTwin-DM: plataforma de simulación predictiva basada en gemelos digitales para optimizar la terapia de insulina en Diabetes Tipo 1. Motor UVA/Padova (FDA) + agente de aprendizaje por refuerzo." />
   <title>BioTwin-DM · Plataforma de Simulación Predictiva (Gemelo Digital T1DM)</title>
+
+  <!-- Favicon incrustado (glifo del gemelo digital, sin petición externa) -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2334d399' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12h4l2 6 4-12 2 6h6'/%3E%3C/svg%3E" />
 
   <!-- ============================================================= -->
   <!-- DEPENDENCIAS VÍA CDN                                          -->
@@ -121,6 +125,7 @@
                 <span class="font-mono text-amber-400"><span id="valCHO">60</span> g</span>
               </label>
               <input id="inputCHO" type="range" min="0" max="120" step="5" value="60"
+                     aria-label="Carbohidratos ingeridos, en gramos"
                      class="w-full accent-amber-400 cursor-pointer">
             </div>
 
@@ -130,13 +135,14 @@
                 <span class="font-mono text-sky-400"><span id="valInsulina">4.0</span> U</span>
               </label>
               <input id="inputInsulina" type="range" min="0" max="25" step="0.5" value="4"
+                     aria-label="Bolo de insulina, en unidades"
                      class="w-full accent-sky-400 cursor-pointer">
             </div>
 
             <button id="btnSimular"
-              class="w-full mt-1 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-sm font-medium py-2.5 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">
+              class="w-full mt-1 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-medium py-2.5 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>
-              Ejecutar Simulación Predictiva
+              <span id="btnSimularLabel">Ejecutar Simulación Predictiva</span>
             </button>
           </div>
         </section>
@@ -155,7 +161,8 @@
             </div>
             <div class="flex items-center gap-3">
               <span id="badgeRL" class="text-[10px] font-mono px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">IA Activa</span>
-              <div id="toggleRL" class="switch on" role="switch" aria-checked="true" tabindex="0">
+              <div id="toggleRL" class="switch on" role="switch" aria-checked="true" tabindex="0"
+                   aria-label="Activar control con inteligencia artificial (agente RL)">
                 <span class="knob"></span>
               </div>
             </div>

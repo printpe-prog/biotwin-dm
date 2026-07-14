@@ -120,3 +120,30 @@ body { color: #e2e8f0; }
 
 /* Números tabulares para datos clínicos */
 .tnum { font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------------------
+ * Accesibilidad
+ * ------------------------------------------------------------------------- */
+
+/* Anillo de foco visible para navegación por teclado. Se usa :focus-visible
+ * para no mostrarlo en clics de ratón, solo cuando el usuario navega con Tab. */
+button:focus-visible,
+a:focus-visible,
+.switch:focus-visible,
+input[type="range"]:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Respeta la preferencia del sistema de reducir el movimiento: desactiva las
+ * animaciones decorativas (punto pulsante, spinner, transiciones largas) para
+ * usuarios con sensibilidad vestibular. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .status-dot { animation: none; }
+}
