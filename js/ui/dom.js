@@ -9,6 +9,7 @@ export const DOM = {};
 
 export function cacheDOM() {
   const ids = [
+    'estadoDot', 'estadoConexion',
     'selectorPacientes', 'btnNuevoPaciente', 'perfilClinico', 'perfilParametros', 'valCHO', 'valInsulina',
     'inputCHO', 'inputInsulina', 'btnSimular', 'badgeRL', 'toggleRL', 'btnOhio',
     'pipelineStatus', 'graficoPrincipal', 'badgeModo', 'btnEjeDetalle', 'btnEjeHora',

@@ -57,12 +57,12 @@ function animarContador(el, desde, hasta, ms = 400) {
   setTimeout(() => { el.textContent = hasta.toFixed(1); }, ms + 80);
 }
 
-/** Render estático de la tarjeta RMSE (valor fijo de referencia). Una vez en init. */
+/** Render estático de la tarjeta RMSE (valor de referencia offline). Una vez en init. */
 export function renderRMSECard() {
   DOM.rmseValor.textContent = '18.5';
-  DOM.rmseBadge.textContent = '✓ Design constraint satisfied (< 25 mg/dL)';
+  DOM.rmseBadge.textContent = '✓ Restricción de diseño satisfecha (< 25 mg/dL)';
   DOM.rmseSubtext.textContent =
-    'Mean squared error between digital twin prediction and OhioT1DM reference values.';
+    'Valor de referencia (modo offline). Con el backend activo se calcula el RMSE real sobre OhioT1DM con scikit-learn.';
 }
 
 /** Soporte a la decisión clínica según el último valor glucémico de la curva. */
@@ -70,25 +70,25 @@ export function renderDecisionSupport(lastGlucose) {
   const el = DOM.decisionTexto;
   const { hipoSevera, hipo, hiper, hiperSevera } = CONFIG.rangos;
   if (lastGlucose === null || lastGlucose === undefined || Number.isNaN(lastGlucose)) {
-    el.textContent = 'No predictive data available.';
+    el.textContent = 'Sin datos predictivos disponibles.';
     el.style.color = '#94a3b8';
     return;
   }
   let txt, color;
   if (lastGlucose > hiperSevera) {
-    txt = `🔴 Severe hyperglycemia projected (>${Math.round(lastGlucose)} mg/dL). Urgent bolus correction advised.`;
+    txt = `🔴 Hiperglicemia severa proyectada (>${Math.round(lastGlucose)} mg/dL). Corrección con bolo urgente.`;
     color = '#fb7185';
   } else if (lastGlucose > hiper) {
-    txt = '🟡 Mild-moderate hyperglycemia. Adjust I:CHO ratio for next meal.';
+    txt = '🟡 Hiperglicemia leve-moderada. Ajustar ratio I:CHO en la próxima comida.';
     color = '#fbbf24';
   } else if (lastGlucose >= hipo) {
-    txt = '🟢 Glucose within target range. Maintain current regimen. Review in 2 h.';
+    txt = '🟢 Glucosa en rango objetivo. Mantener régimen actual. Revisar en 2 h.';
     color = '#34d399';
   } else if (lastGlucose >= hipoSevera) {
-    txt = '🟠 Mild hypoglycemia. Ingest 15 g fast-acting glucose. Reassess in 15 min.';
+    txt = '🟠 Hipoglicemia leve. Ingerir 15 g de glucosa rápida. Reevaluar en 15 min.';
     color = '#fb923c';
   } else {
-    txt = '🔴 SEVERE HYPOGLYCEMIA. Immediate action required.';
+    txt = '🔴 HIPOGLICEMIA SEVERA. Acción inmediata requerida.';
     color = '#fb7185';
   }
   el.textContent = txt;
@@ -117,10 +117,10 @@ export function updateAllMetrics() {
   DOM.tirBarra.style.width = tir.toFixed(1) + '%';
   DOM.tirBarra.style.backgroundColor = tirColor;
   if (tir > tirVerde) {
-    DOM.tirBadge.textContent = '✓ Clinical Target Met';
+    DOM.tirBadge.textContent = '✓ Meta clínica alcanzada';
     DOM.tirBadge.className = 'mt-2 text-[11px] font-medium text-emerald-400';
   } else {
-    DOM.tirBadge.textContent = '✗ Clinical Target Not Met';
+    DOM.tirBadge.textContent = '✗ Meta clínica no alcanzada';
     DOM.tirBadge.className = 'mt-2 text-[11px] font-medium text-rose-400';
   }
   tirPrevio = tir;
@@ -152,10 +152,10 @@ export function setMetricasBackend({ tir, tbr, decision }) {
   DOM.tirBarra.style.width = tir.toFixed(1) + '%';
   DOM.tirBarra.style.backgroundColor = tirColor;
   if (tir > tirVerde) {
-    DOM.tirBadge.textContent = '✓ Clinical Target Met';
+    DOM.tirBadge.textContent = '✓ Meta clínica alcanzada';
     DOM.tirBadge.className = 'mt-2 text-[11px] font-medium text-emerald-400';
   } else {
-    DOM.tirBadge.textContent = '✗ Clinical Target Not Met';
+    DOM.tirBadge.textContent = '✗ Meta clínica no alcanzada';
     DOM.tirBadge.className = 'mt-2 text-[11px] font-medium text-rose-400';
   }
   tirPrevio = tir;
@@ -176,7 +176,7 @@ export function setMetricasBackend({ tir, tbr, decision }) {
 export function setRMSEBackend({ rmse, r2, fuente, cumple }) {
   DOM.rmseValor.textContent = rmse.toFixed(1);
   if (cumple) {
-    DOM.rmseBadge.textContent = `✓ Design constraint satisfied (< 25 mg/dL) · R²=${r2.toFixed(2)}`;
+    DOM.rmseBadge.textContent = `✓ Restricción de diseño satisfecha (< 25 mg/dL) · R²=${r2.toFixed(2)}`;
     DOM.rmseBadge.className = 'mt-2 inline-block text-[11px] font-medium px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
   } else {
     DOM.rmseBadge.textContent = `RMSE ${rmse.toFixed(1)} mg/dL · R²=${r2.toFixed(2)}`;

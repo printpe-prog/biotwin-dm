@@ -190,8 +190,8 @@ body { color: #e2e8f0; }
       </div>
 
       <div class="flex items-center gap-2 text-xs">
-        <span class="status-dot"></span>
-        <span class="text-emerald-400 font-medium">Sistema Operativo</span>
+        <span id="estadoDot" class="status-dot"></span>
+        <span id="estadoConexion" class="text-slate-300 font-medium">Conectando…</span>
         <span class="hidden md:inline text-slate-500 font-mono ml-3">INSW410</span>
       </div>
     </div>
@@ -328,13 +328,13 @@ body { color: #e2e8f0; }
         <!-- Panel de indicadores clínicos (Módulo 7) -->
         <div class="flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-          <h2 class="text-sm font-semibold text-slate-200">Clinical Performance Indicators</h2>
+          <h2 class="text-sm font-semibold text-slate-200">Indicadores Clínicos de Desempeño</h2>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
 
-          <!-- KPI 1: Time In Range -->
+          <!-- KPI 1: Tiempo en Rango -->
           <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
-            <p class="text-[11px] text-slate-400 uppercase tracking-wide">Time In Range</p>
+            <p class="text-[11px] text-slate-400 uppercase tracking-wide">Tiempo en Rango</p>
             <p class="mt-1 flex items-baseline gap-1">
               <span id="tirValor" class="text-2xl font-mono font-semibold text-emerald-400 tnum">—</span>
               <span class="text-sm text-slate-500">%</span>
@@ -342,12 +342,12 @@ body { color: #e2e8f0; }
             <div class="mt-2 h-2 rounded-full bg-slate-700 overflow-hidden">
               <div id="tirBarra" class="kpi-bar-fill h-full bg-emerald-400" style="width:0%"></div>
             </div>
-            <p id="tirBadge" class="mt-2 text-[11px] font-medium text-slate-500">Target range 70–180 mg/dL</p>
+            <p id="tirBadge" class="mt-2 text-[11px] font-medium text-slate-500">Rango objetivo 70–180 mg/dL</p>
           </div>
 
-          <!-- KPI 2: Time Below Range -->
+          <!-- KPI 2: Tiempo Bajo Rango -->
           <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
-            <p class="text-[11px] text-slate-400 uppercase tracking-wide">Time Below Range</p>
+            <p class="text-[11px] text-slate-400 uppercase tracking-wide">Tiempo Bajo Rango</p>
             <p class="mt-1 flex items-baseline gap-1">
               <span id="tbrValor" class="text-2xl font-mono font-semibold text-emerald-400 tnum">—</span>
               <span class="text-sm text-slate-500">%</span>
@@ -355,29 +355,29 @@ body { color: #e2e8f0; }
             <div class="mt-2 h-2 rounded-full bg-slate-700 overflow-hidden">
               <div id="tbrBarra" class="kpi-bar-fill h-full bg-emerald-400" style="width:0%"></div>
             </div>
-            <p class="mt-2 text-[11px] text-slate-500">Clinical limit: &lt; 4 %</p>
+            <p class="mt-2 text-[11px] text-slate-500">Límite clínico: &lt; 4 %</p>
           </div>
 
-          <!-- KPI 3: Predictive Error (RMSE) — valor fijo de referencia -->
+          <!-- KPI 3: Error de Predicción (RMSE) -->
           <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
-            <p class="text-[11px] text-slate-400 uppercase tracking-wide">Predictive Error (RMSE)</p>
+            <p class="text-[11px] text-slate-400 uppercase tracking-wide">Error de Predicción (RMSE)</p>
             <p class="mt-1 flex items-baseline gap-1">
-              <span id="rmseValor" class="text-2xl font-mono font-semibold text-sky-400 tnum">18.5</span>
+              <span id="rmseValor" class="text-2xl font-mono font-semibold text-sky-400 tnum">—</span>
               <span class="text-sm text-slate-500">mg/dL</span>
             </p>
             <span id="rmseBadge" class="mt-2 inline-block text-[11px] font-medium px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-              ✓ Design constraint satisfied (&lt; 25 mg/dL)
+              ✓ Restricción de diseño satisfecha (&lt; 25 mg/dL)
             </span>
             <p id="rmseSubtext" class="mt-2 text-[10px] text-slate-500 leading-snug">
-              Mean squared error between digital twin prediction and OhioT1DM reference values.
+              Error cuadrático medio entre la predicción del gemelo digital y los valores de referencia OhioT1DM.
             </p>
           </div>
 
-          <!-- KPI 4: Clinical Decision Support -->
+          <!-- KPI 4: Soporte a la Decisión Clínica -->
           <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
-            <p class="text-[11px] text-slate-400 uppercase tracking-wide">Clinical Decision Support</p>
+            <p class="text-[11px] text-slate-400 uppercase tracking-wide">Soporte a la Decisión Clínica</p>
             <p id="decisionTexto" class="mt-2 text-xs text-slate-300 leading-relaxed">
-              Load a profile and run a simulation to obtain recommendations.
+              Carga un perfil y ejecuta una simulación para obtener recomendaciones.
             </p>
           </div>
         </div>
@@ -1084,6 +1084,7 @@ const DOM = {};
 
 function cacheDOM() {
   const ids = [
+    'estadoDot', 'estadoConexion',
     'selectorPacientes', 'btnNuevoPaciente', 'perfilClinico', 'perfilParametros', 'valCHO', 'valInsulina',
     'inputCHO', 'inputInsulina', 'btnSimular', 'badgeRL', 'toggleRL', 'btnOhio',
     'pipelineStatus', 'graficoPrincipal', 'badgeModo', 'btnEjeDetalle', 'btnEjeHora',
@@ -1154,12 +1155,12 @@ function animarContador(el, desde, hasta, ms = 400) {
   setTimeout(() => { el.textContent = hasta.toFixed(1); }, ms + 80);
 }
 
-/** Render estático de la tarjeta RMSE (valor fijo de referencia). Una vez en init. */
+/** Render estático de la tarjeta RMSE (valor de referencia offline). Una vez en init. */
 function renderRMSECard() {
   DOM.rmseValor.textContent = '18.5';
-  DOM.rmseBadge.textContent = '✓ Design constraint satisfied (< 25 mg/dL)';
+  DOM.rmseBadge.textContent = '✓ Restricción de diseño satisfecha (< 25 mg/dL)';
   DOM.rmseSubtext.textContent =
-    'Mean squared error between digital twin prediction and OhioT1DM reference values.';
+    'Valor de referencia (modo offline). Con el backend activo se calcula el RMSE real sobre OhioT1DM con scikit-learn.';
 }
 
 /** Soporte a la decisión clínica según el último valor glucémico de la curva. */
@@ -1167,25 +1168,25 @@ function renderDecisionSupport(lastGlucose) {
   const el = DOM.decisionTexto;
   const { hipoSevera, hipo, hiper, hiperSevera } = CONFIG.rangos;
   if (lastGlucose === null || lastGlucose === undefined || Number.isNaN(lastGlucose)) {
-    el.textContent = 'No predictive data available.';
+    el.textContent = 'Sin datos predictivos disponibles.';
     el.style.color = '#94a3b8';
     return;
   }
   let txt, color;
   if (lastGlucose > hiperSevera) {
-    txt = `🔴 Severe hyperglycemia projected (>${Math.round(lastGlucose)} mg/dL). Urgent bolus correction advised.`;
+    txt = `🔴 Hiperglicemia severa proyectada (>${Math.round(lastGlucose)} mg/dL). Corrección con bolo urgente.`;
     color = '#fb7185';
   } else if (lastGlucose > hiper) {
-    txt = '🟡 Mild-moderate hyperglycemia. Adjust I:CHO ratio for next meal.';
+    txt = '🟡 Hiperglicemia leve-moderada. Ajustar ratio I:CHO en la próxima comida.';
     color = '#fbbf24';
   } else if (lastGlucose >= hipo) {
-    txt = '🟢 Glucose within target range. Maintain current regimen. Review in 2 h.';
+    txt = '🟢 Glucosa en rango objetivo. Mantener régimen actual. Revisar en 2 h.';
     color = '#34d399';
   } else if (lastGlucose >= hipoSevera) {
-    txt = '🟠 Mild hypoglycemia. Ingest 15 g fast-acting glucose. Reassess in 15 min.';
+    txt = '🟠 Hipoglicemia leve. Ingerir 15 g de glucosa rápida. Reevaluar en 15 min.';
     color = '#fb923c';
   } else {
-    txt = '🔴 SEVERE HYPOGLYCEMIA. Immediate action required.';
+    txt = '🔴 HIPOGLICEMIA SEVERA. Acción inmediata requerida.';
     color = '#fb7185';
   }
   el.textContent = txt;
@@ -1214,10 +1215,10 @@ function updateAllMetrics() {
   DOM.tirBarra.style.width = tir.toFixed(1) + '%';
   DOM.tirBarra.style.backgroundColor = tirColor;
   if (tir > tirVerde) {
-    DOM.tirBadge.textContent = '✓ Clinical Target Met';
+    DOM.tirBadge.textContent = '✓ Meta clínica alcanzada';
     DOM.tirBadge.className = 'mt-2 text-[11px] font-medium text-emerald-400';
   } else {
-    DOM.tirBadge.textContent = '✗ Clinical Target Not Met';
+    DOM.tirBadge.textContent = '✗ Meta clínica no alcanzada';
     DOM.tirBadge.className = 'mt-2 text-[11px] font-medium text-rose-400';
   }
   tirPrevio = tir;
@@ -1249,10 +1250,10 @@ function setMetricasBackend({ tir, tbr, decision }) {
   DOM.tirBarra.style.width = tir.toFixed(1) + '%';
   DOM.tirBarra.style.backgroundColor = tirColor;
   if (tir > tirVerde) {
-    DOM.tirBadge.textContent = '✓ Clinical Target Met';
+    DOM.tirBadge.textContent = '✓ Meta clínica alcanzada';
     DOM.tirBadge.className = 'mt-2 text-[11px] font-medium text-emerald-400';
   } else {
-    DOM.tirBadge.textContent = '✗ Clinical Target Not Met';
+    DOM.tirBadge.textContent = '✗ Meta clínica no alcanzada';
     DOM.tirBadge.className = 'mt-2 text-[11px] font-medium text-rose-400';
   }
   tirPrevio = tir;
@@ -1273,7 +1274,7 @@ function setMetricasBackend({ tir, tbr, decision }) {
 function setRMSEBackend({ rmse, r2, fuente, cumple }) {
   DOM.rmseValor.textContent = rmse.toFixed(1);
   if (cumple) {
-    DOM.rmseBadge.textContent = `✓ Design constraint satisfied (< 25 mg/dL) · R²=${r2.toFixed(2)}`;
+    DOM.rmseBadge.textContent = `✓ Restricción de diseño satisfecha (< 25 mg/dL) · R²=${r2.toFixed(2)}`;
     DOM.rmseBadge.className = 'mt-2 inline-block text-[11px] font-medium px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
   } else {
     DOM.rmseBadge.textContent = `RMSE ${rmse.toFixed(1)} mg/dL · R²=${r2.toFixed(2)}`;
@@ -2003,6 +2004,24 @@ function dependenciasDisponibles() {
   return typeof window.Chart !== 'undefined';
 }
 
+/** Refleja en el encabezado qué motor está activo (real vs. offline). */
+function setEstadoConexion(texto, tono) {
+  const colores = {
+    emerald: { txt: 'text-emerald-400', dot: '#34d399' },
+    amber: { txt: 'text-amber-400', dot: '#fbbf24' },
+    slate: { txt: 'text-slate-300', dot: '#94a3b8' },
+  };
+  const c = colores[tono] || colores.slate;
+  if (DOM.estadoConexion) {
+    DOM.estadoConexion.textContent = texto;
+    DOM.estadoConexion.className = c.txt + ' font-medium';
+  }
+  if (DOM.estadoDot) {
+    DOM.estadoDot.style.background = c.dot;
+    DOM.estadoDot.style.boxShadow = `0 0 8px ${c.dot}`;
+  }
+}
+
 function mostrarErrorDependencias() {
   const aviso = document.createElement('div');
   aviso.className = 'fixed inset-x-0 top-0 z-50 bg-rose-900 text-rose-100 text-sm ' +
@@ -2026,11 +2045,23 @@ function construirSelector() {
     btn.dataset.idx = idx;
     btn.className = 'patient-btn w-full text-left p-3 rounded-lg border border-slate-700 bg-slate-900/50 ' +
       'hover:border-sky-500/50 hover:bg-slate-900 transition-all duration-300';
-    const etiquetaCustom = p.custom
-      ? ' <span class="text-[9px] px-1 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/30">custom</span>' : '';
-    btn.innerHTML =
-      `<p class="text-xs font-medium text-slate-200 pr-12">${p.alias}${etiquetaCustom}</p>` +
-      `<p class="text-[10px] font-mono text-slate-500 mt-0.5">${p.id} · ${p.tipo}</p>`;
+
+    // Se construye con nodos + textContent (no innerHTML): el alias es texto libre
+    // del usuario persistido en localStorage, así que interpolarlo como HTML sería
+    // un vector de XSS almacenado. textContent lo neutraliza por completo.
+    const linea1 = document.createElement('p');
+    linea1.className = 'text-xs font-medium text-slate-200 pr-12';
+    linea1.textContent = p.alias;
+    if (p.custom) {
+      const badge = document.createElement('span');
+      badge.className = 'ml-1 align-middle text-[9px] px-1 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/30';
+      badge.textContent = 'custom';
+      linea1.appendChild(badge);
+    }
+    const linea2 = document.createElement('p');
+    linea2.className = 'text-[10px] font-mono text-slate-500 mt-0.5';
+    linea2.textContent = `${p.id} · ${p.tipo}`;
+    btn.append(linea1, linea2);
     btn.addEventListener('click', () => cargarPerfil(idx));
     fila.appendChild(btn);
 
@@ -2168,6 +2199,7 @@ function continuarConFallback() {
  * ========================================================================= */
 async function iniciarModoBackend() {
   const s = api.salud || {};
+  setEstadoConexion('Motor real · backend conectado', 'emerald');
   log('SYSTEM', `Backend conectado · ${s.motor || 'simglucose'} · RL ${s.rl_disponible ? 'entrenado (PPO)' : 'no disponible → PID'}`, 'text-emerald-400');
   log('SYSTEM', 'Cifrado Fernet/AES real en servidor · cumplimiento Ley N° 19.628 y N° 21.719', 'text-slate-400');
 
@@ -2444,6 +2476,7 @@ async function init() {
     alEditar: (idx) => { construirSelector(); cargarPerfil(idx); },
   });
 
+  setEstadoConexion('Motor local · modo offline', 'amber');
   log('SYSTEM', 'BioTwin-DM (modo offline) · modelo compartimental tipo UVA/Padova · integración RK4', 'text-emerald-400');
   log('SYSTEM', 'Backend no detectado · cifrado simulado · inicie el servidor para el motor real', 'text-amber-400');
 

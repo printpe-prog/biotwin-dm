@@ -35,11 +35,24 @@ try {
 
 console.log(`\n→ Conectando a ${HOST}:${PORT} como ${USER}...`);
 
-// curl soporta FTPS explícito (--ssl) y está disponible en Windows 10/11
-const cmd = `curl --ssl --ftp-create-dirs -u "${USER}:${PASS}" -T "${ARCHIVO}" "ftp://${HOST}/${RUTA_SERVIDOR}" --progress-bar`;
+// La contraseña NO se pasa como argumento de la línea de comandos (quedaría
+// visible en el listado de procesos y en el historial del shell). En su lugar
+// se entrega a curl por stdin mediante `--config -`. Valores citados: se escapan
+// backslash y comillas conforme al formato del archivo de configuración de curl.
+const esc = (v) => String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+const configCurl = [
+  'ssl',
+  'ftp-create-dirs',
+  `user "${esc(USER)}:${esc(PASS)}"`,
+  `upload-file "${esc(ARCHIVO)}"`,
+  `url "ftp://${esc(HOST)}/${esc(RUTA_SERVIDOR)}"`,
+].join('\n');
 
 try {
-  execSync(cmd, { stdio: 'inherit' });
+  execSync('curl --config - --progress-bar', {
+    input: configCurl,
+    stdio: ['pipe', 'inherit', 'inherit'],
+  });
   console.log(`\n✓ Deploy exitoso: ${ARCHIVO} → ftp://${HOST}/${RUTA_SERVIDOR}`);
   console.log(`  Producción: http://${HOST.replace('ftp.', '')}/biotwin/`);
 } catch {

@@ -32,6 +32,24 @@ function dependenciasDisponibles() {
   return typeof window.Chart !== 'undefined';
 }
 
+/** Refleja en el encabezado qué motor está activo (real vs. offline). */
+function setEstadoConexion(texto, tono) {
+  const colores = {
+    emerald: { txt: 'text-emerald-400', dot: '#34d399' },
+    amber: { txt: 'text-amber-400', dot: '#fbbf24' },
+    slate: { txt: 'text-slate-300', dot: '#94a3b8' },
+  };
+  const c = colores[tono] || colores.slate;
+  if (DOM.estadoConexion) {
+    DOM.estadoConexion.textContent = texto;
+    DOM.estadoConexion.className = c.txt + ' font-medium';
+  }
+  if (DOM.estadoDot) {
+    DOM.estadoDot.style.background = c.dot;
+    DOM.estadoDot.style.boxShadow = `0 0 8px ${c.dot}`;
+  }
+}
+
 function mostrarErrorDependencias() {
   const aviso = document.createElement('div');
   aviso.className = 'fixed inset-x-0 top-0 z-50 bg-rose-900 text-rose-100 text-sm ' +
@@ -55,11 +73,23 @@ function construirSelector() {
     btn.dataset.idx = idx;
     btn.className = 'patient-btn w-full text-left p-3 rounded-lg border border-slate-700 bg-slate-900/50 ' +
       'hover:border-sky-500/50 hover:bg-slate-900 transition-all duration-300';
-    const etiquetaCustom = p.custom
-      ? ' <span class="text-[9px] px-1 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/30">custom</span>' : '';
-    btn.innerHTML =
-      `<p class="text-xs font-medium text-slate-200 pr-12">${p.alias}${etiquetaCustom}</p>` +
-      `<p class="text-[10px] font-mono text-slate-500 mt-0.5">${p.id} · ${p.tipo}</p>`;
+
+    // Se construye con nodos + textContent (no innerHTML): el alias es texto libre
+    // del usuario persistido en localStorage, así que interpolarlo como HTML sería
+    // un vector de XSS almacenado. textContent lo neutraliza por completo.
+    const linea1 = document.createElement('p');
+    linea1.className = 'text-xs font-medium text-slate-200 pr-12';
+    linea1.textContent = p.alias;
+    if (p.custom) {
+      const badge = document.createElement('span');
+      badge.className = 'ml-1 align-middle text-[9px] px-1 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/30';
+      badge.textContent = 'custom';
+      linea1.appendChild(badge);
+    }
+    const linea2 = document.createElement('p');
+    linea2.className = 'text-[10px] font-mono text-slate-500 mt-0.5';
+    linea2.textContent = `${p.id} · ${p.tipo}`;
+    btn.append(linea1, linea2);
     btn.addEventListener('click', () => cargarPerfil(idx));
     fila.appendChild(btn);
 
@@ -197,6 +227,7 @@ function continuarConFallback() {
  * ========================================================================= */
 async function iniciarModoBackend() {
   const s = api.salud || {};
+  setEstadoConexion('Motor real · backend conectado', 'emerald');
   log('SYSTEM', `Backend conectado · ${s.motor || 'simglucose'} · RL ${s.rl_disponible ? 'entrenado (PPO)' : 'no disponible → PID'}`, 'text-emerald-400');
   log('SYSTEM', 'Cifrado Fernet/AES real en servidor · cumplimiento Ley N° 19.628 y N° 21.719', 'text-slate-400');
 
@@ -473,6 +504,7 @@ async function init() {
     alEditar: (idx) => { construirSelector(); cargarPerfil(idx); },
   });
 
+  setEstadoConexion('Motor local · modo offline', 'amber');
   log('SYSTEM', 'BioTwin-DM (modo offline) · modelo compartimental tipo UVA/Padova · integración RK4', 'text-emerald-400');
   log('SYSTEM', 'Backend no detectado · cifrado simulado · inicie el servidor para el motor real', 'text-amber-400');
 
