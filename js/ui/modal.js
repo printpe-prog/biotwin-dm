@@ -18,13 +18,8 @@ export function setRL(activo, silencioso) {
   estado.rlActivo = activo;
   DOM.toggleRL.classList.toggle('on', activo);
   DOM.toggleRL.setAttribute('aria-checked', String(activo));
-  if (activo) {
-    DOM.badgeRL.textContent = 'IA Activa';
-    DOM.badgeRL.className = 'text-[10px] font-mono px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
-  } else {
-    DOM.badgeRL.textContent = 'Control manual';
-    DOM.badgeRL.className = 'text-[10px] font-mono px-2 py-1 rounded-md bg-slate-600/30 text-slate-400 border border-slate-600';
-  }
+  DOM.badgeRL.textContent = activo ? 'IA activa' : 'Control manual';
+  DOM.badgeRL.className = 'badge ' + (activo ? 'badge-ok' : 'badge-muted');
   if (!silencioso) {
     const politica = activo ? 'RL_StableBaselines3' : 'PID_heuristic';
     registrarFlujoSeguridad('control_policy_switch',

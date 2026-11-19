@@ -76,7 +76,7 @@ def entrenar(patient: str = "adult#001", timesteps: int = 60000, seed: int = 1) 
     metr = evaluar(model, patient)
     print(f"[RL] Listo. Modelo: {ruta.name}")
     print(f"[RL] Evaluación 24h: TIR={metr['tir']}% TBR={metr['tbr']}% TAR={metr['tar']}% media={metr['media']} mg/dL")
-    cumple = "✓ OE2 cumplido" if metr["tir"] > 80 else "✗ TIR<80% (entrenar más timesteps)"
+    cumple = "[OK] OE2 cumplido" if metr["tir"] > 80 else "[X] TIR<80% (entrenar más timesteps)"
     print(f"[RL] {cumple}")
     return str(ruta)
 

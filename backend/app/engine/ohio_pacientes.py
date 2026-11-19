@@ -32,15 +32,9 @@ from functools import lru_cache
 
 import numpy as np
 
-from ..config import OHIO_DIR
+from ..config import OHIO_DIR, umbral_bolo_seguro
 
 _PASO_MIN = 5  # resolución CGM de OhioT1DM (min por muestra)
-
-
-def _umbral_seguridad(tdd: float) -> float:
-    """Bolo máximo seguro (~20 % de la TDD), redondeado a 0.5 U (igual heurística
-    que los perfiles virtuales en pacientes.py)."""
-    return round(max(2.0, 0.20 * tdd) * 2) / 2
 
 
 def _extraer_clinico(ruta: str) -> dict | None:
@@ -155,6 +149,6 @@ def cargar_perfiles_ohio() -> dict[str, dict]:
                 f"Simulado sobre el modelo fisiológico UVA/Padova más cercano "
                 f"({modelo_name})."
             ),
-            "umbral_hipoglicemia_critica": _umbral_seguridad(clin["TDD"]),
+            "umbral_hipoglicemia_critica": umbral_bolo_seguro(clin["TDD"]),
         }
     return perfiles

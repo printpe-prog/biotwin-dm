@@ -36,7 +36,7 @@ function cerrarModal() {
     DOM.formPaciente.reset();
     DOM.formPacienteError.textContent = '';
     _idEdicion = null;
-    DOM.modalPacienteTitulo.textContent = 'Nuevo Paciente Virtual';
+    DOM.modalPacienteTitulo.textContent = 'Nuevo paciente virtual';
     DOM.btnGuardarPaciente.textContent = 'Guardar paciente';
   }, 250);
 }
@@ -97,7 +97,7 @@ function llenarFormulario(p) {
  */
 export function abrirEdicionPaciente(p) {
   _idEdicion = p.id;
-  DOM.modalPacienteTitulo.textContent = 'Editar Paciente Virtual';
+  DOM.modalPacienteTitulo.textContent = 'Editar paciente virtual';
   DOM.btnGuardarPaciente.textContent = 'Guardar cambios';
   llenarFormulario(p);
   DOM.formPacienteError.textContent = '';
@@ -115,7 +115,7 @@ export function cablearFormularioPaciente(callbacks) {
   // Botón "Nuevo paciente" — abre modal en modo alta
   DOM.btnNuevoPaciente.addEventListener('click', () => {
     _idEdicion = null;
-    DOM.modalPacienteTitulo.textContent = 'Nuevo Paciente Virtual';
+    DOM.modalPacienteTitulo.textContent = 'Nuevo paciente virtual';
     DOM.btnGuardarPaciente.textContent = 'Guardar paciente';
     DOM.formPaciente.reset();
     DOM.formPacienteError.textContent = '';

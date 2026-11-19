@@ -34,11 +34,6 @@ OBJETIVO = 140.0
 MAX_FACTOR_BASAL = 2.0
 
 
-def insulina_max_paso(tdd: float) -> float:
-    """Insulina discrecional máxima por paso (U). ~10 % de la dosis diaria."""
-    return max(2.0, 0.10 * tdd)
-
-
 def construir_obs(
     cgm: float, tendencia: float, tasa_basal: float, max_rate: float, comida_g: float
 ) -> np.ndarray:
@@ -161,7 +156,7 @@ class EntornoGlucosa(gym.Env):
         comida_g = self.comidas.get(minuto, 0.0)
         bolo_comida = (comida_g / self.CR) if comida_g > 0 else 0.0
 
-        # Acción del agente: factor de modulación de la basal (0–4×).
+        # Acción del agente: factor de modulación de la basal (0 a MAX_FACTOR_BASAL×).
         tasa = float(np.clip(action[0], 0.0, 1.0)) * self.max_rate
         obs, _, done, info = self.env.step(
             Action(basal=tasa, bolus=bolo_comida / self.sample_time)

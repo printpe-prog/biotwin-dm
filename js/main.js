@@ -53,20 +53,19 @@ function construirSelector() {
 
     const btn = document.createElement('button');
     btn.dataset.idx = idx;
-    btn.className = 'patient-btn w-full text-left p-3 rounded-lg border border-slate-700 bg-slate-900/50 ' +
-      'hover:border-sky-500/50 hover:bg-slate-900 transition-all duration-300';
+    btn.className = 'patient-btn';
     const etiquetaCustom = p.custom
-      ? ' <span class="text-[9px] px-1 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/30">custom</span>' : '';
+      ? ' <span class="badge badge-info" style="padding:2px 6px; font-size:9.5px;">propio</span>' : '';
     btn.innerHTML =
-      `<p class="text-xs font-medium text-slate-200 pr-12">${p.alias}${etiquetaCustom}</p>` +
-      `<p class="text-[10px] font-mono text-slate-500 mt-0.5">${p.id} · ${p.tipo}</p>`;
+      `<p class="text-[12.5px] font-medium text-[var(--ink)] pr-12 leading-snug">${p.alias}${etiquetaCustom}</p>` +
+      `<p class="text-[10.5px] font-mono text-[var(--ink-3)] mt-1">${p.id} · ${p.tipo}</p>`;
     btn.addEventListener('click', () => cargarPerfil(idx));
     fila.appendChild(btn);
 
     // Los pacientes personalizados pueden editarse y eliminarse
     if (p.custom) {
       const editar = document.createElement('button');
-      editar.className = 'absolute top-2 right-8 text-slate-500 hover:text-sky-400 transition-colors';
+      editar.className = 'absolute top-3 right-9 text-[var(--ink-3)] hover:text-[var(--info)] transition-colors';
       editar.title = 'Editar paciente';
       editar.setAttribute('aria-label', `Editar ${p.alias}`);
       editar.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>';
@@ -74,7 +73,7 @@ function construirSelector() {
       fila.appendChild(editar);
 
       const del = document.createElement('button');
-      del.className = 'absolute top-2 right-2 text-slate-500 hover:text-rose-400 transition-colors';
+      del.className = 'absolute top-3 right-3 text-[var(--ink-3)] hover:text-[var(--risk)] transition-colors';
       del.title = 'Eliminar paciente';
       del.setAttribute('aria-label', `Eliminar ${p.alias}`);
       del.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>';
@@ -88,11 +87,7 @@ function construirSelector() {
 
 function marcarSeleccionado(idx) {
   DOM.selectorPacientes.querySelectorAll('.patient-btn').forEach((b) => {
-    const sel = Number(b.dataset.idx) === idx;
-    b.classList.toggle('border-sky-500', sel);
-    b.classList.toggle('bg-slate-900', sel);
-    b.classList.toggle('ring-1', sel);
-    b.classList.toggle('ring-sky-500/40', sel);
+    b.classList.toggle('is-active', Number(b.dataset.idx) === idx);
   });
 }
 
@@ -106,10 +101,26 @@ function manejarEliminar(e, id) {
 }
 
 function chipParam(label, valor, alerta) {
-  const color = alerta ? 'text-rose-400' : 'text-sky-300';
-  return `<div class="bg-slate-900/60 border border-slate-700 rounded-md px-2 py-1.5">` +
-    `<span class="text-slate-500">${label}</span>` +
-    `<span class="block ${color} font-semibold tnum">${valor}</span></div>`;
+  return `<div class="chip${alerta ? ' chip-alert' : ''}">` +
+    `<span class="chip-label">${label}</span>` +
+    `<span class="chip-value">${valor}</span></div>`;
+}
+
+/**
+ * Pinta la ficha clínica del perfil. Los cuatro parámetros terapéuticos y el
+ * límite de bolo son comunes a ambos modos; `chipsExtra` aporta los propios de
+ * cada motor (absorción/variabilidad en local, peso/edad en el motor real).
+ */
+function pintarFicha(perfil, chipsExtra = '') {
+  DOM.perfilClinico.textContent = perfil.perfil_clinico;
+  const par = perfil.parametros;
+  DOM.perfilParametros.innerHTML =
+    chipParam('Ratio comida', par.CR + ' g/U') +
+    chipParam('Sensibilidad', par.ISF + ' mg/dL') +
+    chipParam('Dosis diaria', par.TDD + ' U/día') +
+    chipParam('Glucosa base', par.glucosaBasal + ' mg/dL') +
+    chipsExtra +
+    chipParam('Límite bolo', perfil.umbral_hipoglicemia_critica + ' U', true);
 }
 
 /** Carga un perfil: ficha clínica, estado basal y log. */
@@ -118,16 +129,10 @@ function cargarPerfil(idx) {
   const perfil = estado.perfilActual;
   marcarSeleccionado(idx);
 
-  DOM.perfilClinico.textContent = perfil.perfil_clinico;
   const par = perfil.parametros;
-  DOM.perfilParametros.innerHTML =
-    chipParam('Ratio comida', par.CR + ' g/U') +
-    chipParam('Sensibilidad', par.ISF + ' mg/dL') +
-    chipParam('Dosis diaria', par.TDD + ' U/día') +
-    chipParam('Glucosa base', par.glucosaBasal + ' mg/dL') +
+  pintarFicha(perfil,
     chipParam('Absorción', par.pico_absorcion_cho + ' min') +
-    chipParam('Variabilidad', (par.variabilidad * 100).toFixed(0) + '%') +
-    chipParam('Límite bolo', perfil.umbral_hipoglicemia_critica + ' U', true);
+    chipParam('Variabilidad', (par.variabilidad * 100).toFixed(0) + '%'));
 
   renderBasal(perfil);
 
@@ -139,20 +144,32 @@ function cargarPerfil(idx) {
 /* =========================================================================
  * SIMULACIÓN (con verificación de seguridad previa)
  * ========================================================================= */
-function ejecutarSimulacion() {
-  const perfil = estado.perfilActual;
-  if (!perfil) return;
+/**
+ * Lee la dosis solicitada en la UI y aplica la verificación de seguridad ANTES
+ * de simular. Si el bolo excede el umbral del perfil, anula preventivamente el
+ * RL, abre la alerta de fallback y devuelve null; si no, devuelve la dosis.
+ * Compartida por el motor local y el motor real.
+ */
+function leerDosisSegura(perfil) {
   const gCHO = parseFloat(DOM.inputCHO.value);
   const uInsulina = parseFloat(DOM.inputInsulina.value);
   const umbral = perfil.umbral_hipoglicemia_critica;
 
-  // Verificación de dosis peligrosa ANTES de simular
   if (uInsulina > umbral) {
     estado.simPendiente = { gCHO, uInsulinaOriginal: uInsulina, umbral };
     setRL(false, true);          // anulación preventiva del RL (con animación)
     abrirModal(uInsulina, umbral);
-    return;
+    return null;
   }
+  return { gCHO, uInsulina };
+}
+
+function ejecutarSimulacion() {
+  const perfil = estado.perfilActual;
+  if (!perfil) return;
+  const dosis = leerDosisSegura(perfil);
+  if (!dosis) return;
+  const { gCHO, uInsulina } = dosis;
 
   // Camino normal
   sesionActiva.fk_paciente = perfil.id;
@@ -241,9 +258,9 @@ function construirSelectorBackend() {
   const nReales = pacientesBackend.filter((p) => p.tipo === 'real').length;
   const nVirtuales = pacientesBackend.length - nReales;
   const info = document.createElement('p');
-  info.className = 'text-[10px] text-slate-500 mt-2 font-mono flex items-center gap-1';
-  info.innerHTML = `<span class="text-emerald-400">${nVirtuales}</span> virtuales UVA/Padova (FDA)` +
-    (nReales ? ` · <span class="text-sky-400">${nReales}</span> reales OhioT1DM` : '');
+  info.className = 'text-[10.5px] text-[var(--ink-3)] mt-2.5 font-mono flex items-center gap-1';
+  info.innerHTML = `<span class="text-[var(--ok)] font-semibold">${nVirtuales}</span> virtuales UVA/Padova (FDA)` +
+    (nReales ? ` · <span class="text-[var(--info)] font-semibold">${nReales}</span> reales OhioT1DM` : '');
   DOM.selectorPacientes.appendChild(info);
 
   // El botón "Nuevo paciente" no aplica en modo backend (perfiles validados FDA).
@@ -256,16 +273,10 @@ async function cargarPerfilBackend(idx) {
   const dd = document.getElementById('dropdownPacientes');
   if (dd) dd.value = String(idx);
 
-  DOM.perfilClinico.textContent = p.perfil_clinico;
   const par = p.parametros;
-  DOM.perfilParametros.innerHTML =
-    chipParam('Ratio comida', par.CR + ' g/U') +
-    chipParam('Sensibilidad', par.ISF + ' mg/dL') +
-    chipParam('Dosis diaria', par.TDD + ' U/día') +
-    chipParam('Glucosa base', par.glucosaBasal + ' mg/dL') +
+  pintarFicha(p,
     chipParam('Peso', par.peso_kg + ' kg') +
-    chipParam('Edad', (par.edad ?? '—') + ' años') +
-    chipParam('Límite bolo', p.umbral_hipoglicemia_critica + ' U', true);
+    chipParam('Edad', (par.edad ?? '—') + ' años'));
 
   setBadgeModo('Estado basal (motor real)', 'sky');
   // Trayectoria basal real (sin comida ni bolo) desde el motor UVA/Padova.
@@ -284,17 +295,9 @@ async function cargarPerfilBackend(idx) {
 function ejecutarSimulacionBackend() {
   const p = estado.perfilActual;
   if (!p) return;
-  const gCHO = parseFloat(DOM.inputCHO.value);
-  const uIns = parseFloat(DOM.inputInsulina.value);
-  const umbral = p.umbral_hipoglicemia_critica;
-
-  if (uIns > umbral) {
-    estado.simPendiente = { gCHO, uInsulinaOriginal: uIns, umbral };
-    setRL(false, true);
-    abrirModal(uIns, umbral);
-    return;
-  }
-  correrBackend(p, gCHO, uIns, estado.rlActivo, false);
+  const dosis = leerDosisSegura(p);
+  if (!dosis) return;
+  correrBackend(p, dosis.gCHO, dosis.uInsulina, estado.rlActivo, false);
 }
 
 function continuarConFallbackBackend() {
@@ -395,11 +398,8 @@ function cargarOhio() {
  * ========================================================================= */
 function setResolucion(modo) {
   setResolucionEje(modo);
-  const base = 'px-2 py-1 text-[10px] font-mono rounded-md border transition-all ';
-  const activo = 'border-sky-500/30 bg-sky-500/15 text-sky-400';
-  const inactivo = 'border-slate-700 text-slate-400 hover:text-slate-200';
-  DOM.btnEjeDetalle.className = base + (modo === 'detalle' ? activo : inactivo);
-  DOM.btnEjeHora.className = base + (modo === 'hora' ? activo : inactivo);
+  DOM.btnEjeDetalle.classList.toggle('is-active', modo === 'detalle');
+  DOM.btnEjeHora.classList.toggle('is-active', modo === 'hora');
 }
 
 /* =========================================================================

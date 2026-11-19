@@ -22,6 +22,8 @@ from functools import lru_cache
 import pandas as pd
 import simglucose
 
+from ..config import umbral_bolo_seguro
+
 _PARAMS_DIR = os.path.join(os.path.dirname(simglucose.__file__), "params")
 
 _TIPO = {"child": "pediatrico", "adolescent": "adolescente", "adult": "adulto"}
@@ -38,14 +40,6 @@ def _tablas() -> tuple[pd.DataFrame, pd.DataFrame]:
     quest = pd.read_csv(os.path.join(_PARAMS_DIR, "Quest.csv"))
     vp = pd.read_csv(os.path.join(_PARAMS_DIR, "vpatient_params.csv"))
     return quest, vp
-
-
-def _umbral_seguridad(tdi: float, cr: float) -> float:
-    """
-    Umbral de seguridad para un bolo único (U). Heurística clínica: un bolo no
-    debería exceder ~20 % de la dosis diaria total. Se redondea a 0.5 U.
-    """
-    return round(max(2.0, 0.20 * tdi) * 2) / 2
 
 
 @lru_cache(maxsize=1)
@@ -85,7 +79,7 @@ def _cargar_virtuales() -> dict[str, dict]:
                 f"{_DESC[tipo]} Ratio comida={cr} g/U, Sensibilidad={isf} mg/dL/U, "
                 f"Dosis diaria={tdd} U/día. Modelo UVA/Padova FDA."
             ),
-            "umbral_hipoglicemia_critica": _umbral_seguridad(tdd, cr),
+            "umbral_hipoglicemia_critica": umbral_bolo_seguro(tdd),
         }
     return perfiles
 

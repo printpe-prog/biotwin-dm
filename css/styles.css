@@ -1,122 +1,511 @@
 /* ===========================================================================
- * styles.css — Estilos propios del prototipo (complementan a Tailwind CDN).
- * Modo oscuro clínico de alta tecnología.
+ * styles.css — Sistema de diseño de BioTwin-DM.
+ *
+ * Tema oscuro clínico. El color NO es decorativo: codifica el estado glucémico
+ * (verde = en rango, ámbar = hiperglicemia, rojo = hipoglicemia, azul = dato
+ * neutral/histórico), y esa semántica se respeta en toda la interfaz.
+ *
+ * Organización:
+ *   1. Tokens          — variables de color, espacio, radios y sombras
+ *   2. Base            — tipografía, fondo, foco, scrollbars
+ *   3. Componentes     — tarjetas, badges, KPIs, botones, chips, controles
+ *   4. Accesibilidad   — foco visible y movimiento reducido
+ *
+ * Las clases de componente evitan repetir cadenas largas de utilidades en el
+ * HTML y en el JavaScript: el JS alterna modificadores (p. ej. `.badge-ok`)
+ * en lugar de reescribir listas de clases completas.
  * =========================================================================== */
 
-/* Base oscura clínica */
-html, body { background-color: #020617; /* slate-950 */ }
-body { color: #e2e8f0; }
+/* ===========================================================================
+ * 1. TOKENS
+ * =========================================================================== */
+:root {
+  /* Superficies: del fondo más profundo a la tarjeta elevada */
+  --bg:            #060b16;
+  --surface:       #0e1727;
+  --surface-2:     #131e32;
+  --surface-sunk:  #0a111e;
 
-/* Campos del formulario de nuevo paciente */
+  /* Bordes */
+  --border:        #1e2d45;
+  --border-strong: #2b3f5e;
+
+  /* Tinta (texto) */
+  --ink:    #e8eef7;
+  --ink-2:  #9fb0c9;
+  --ink-3:  #6b7d99;
+
+  /* Semántica glucémica */
+  --ok:     #34d399;   /* en rango 70–180 */
+  --warn:   #fbbf24;   /* hiperglicemia */
+  --risk:   #f43f5e;   /* hipoglicemia */
+  --info:   #38bdf8;   /* histórico / dato neutral */
+  --accent: #34d399;   /* acción primaria */
+
+  /* Radios */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+
+  /* Sombras: elevación real, no un halo difuso */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .35);
+  --shadow-2: 0 4px 16px -4px rgba(0, 0, 0, .5), 0 1px 3px rgba(0, 0, 0, .3);
+  --shadow-3: 0 18px 40px -12px rgba(0, 0, 0, .65);
+
+  --ring: 0 0 0 3px rgba(56, 189, 248, .25);
+}
+
+/* ===========================================================================
+ * 2. BASE
+ * =========================================================================== */
+html, body { background-color: var(--bg); }
+
+body {
+  color: var(--ink);
+  font-family: Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Luz ambiental sutil: evita el negro plano sin distraer de los datos. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(900px 500px at 15% -10%, rgba(56, 189, 248, .07), transparent 70%),
+    radial-gradient(800px 500px at 85% -5%, rgba(52, 211, 153, .06), transparent 70%);
+}
+body > * { position: relative; z-index: 1; }
+
+/* Números tabulares: las cifras clínicas no deben "bailar" al actualizarse. */
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* Rótulos de sección en versalita */
+.eyebrow {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .085em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Scrollbars (WebKit + Firefox) */
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: #3b5375; background-clip: content-box; }
+
+/* ===========================================================================
+ * 3. COMPONENTES
+ * =========================================================================== */
+
+/* --- Tarjeta ------------------------------------------------------------- */
+.card {
+  background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2);
+  transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
+}
+.card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-3);
+}
+
+/* Encabezado de tarjeta: icono + título, separados por un filete */
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.card-head svg { flex: none; }
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
+
+/* --- Badge --------------------------------------------------------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.badge-ok     { background: rgba(52, 211, 153, .13); color: var(--ok);   border-color: rgba(52, 211, 153, .32); }
+.badge-warn   { background: rgba(251, 191, 36, .13); color: var(--warn); border-color: rgba(251, 191, 36, .32); }
+.badge-risk   { background: rgba(244, 63, 94, .13);  color: var(--risk); border-color: rgba(244, 63, 94, .32); }
+.badge-info   { background: rgba(56, 189, 248, .13); color: var(--info); border-color: rgba(56, 189, 248, .32); }
+.badge-muted  { background: rgba(107, 125, 153, .14); color: var(--ink-2); border-color: var(--border-strong); }
+
+/* --- KPI ----------------------------------------------------------------- */
+.kpi-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.kpi-value {
+  font-size: 38px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-unit {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.kpi-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.kpi-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width .7s cubic-bezier(.22, 1, .36, 1), background-color .3s ease;
+}
+.kpi-note { font-size: 11.5px; color: var(--ink-3); line-height: 1.45; }
+
+/* --- Botones ------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 13px;
+  font-weight: 550;
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color .2s ease, border-color .2s ease, color .2s ease,
+              transform .12s ease, box-shadow .2s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+
+.btn-primary {
+  background: linear-gradient(180deg, #34d399 0%, #10b981 100%);
+  color: #04221a;
+  font-weight: 650;
+  box-shadow: 0 6px 18px -6px rgba(16, 185, 129, .55);
+}
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #4ade9f 0%, #14c88c 100%);
+  box-shadow: 0 8px 22px -6px rgba(16, 185, 129, .7);
+}
+
+.btn-secondary {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  color: var(--ink);
+}
+.btn-secondary:hover:not(:disabled) { background: #1a2941; border-color: #3b5375; }
+
+.btn-dashed {
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+.btn-dashed:hover { border-color: var(--info); color: var(--info); background: rgba(56, 189, 248, .06); }
+
+/* Botón diminuto de la cabecera de consola */
+.btn-mini {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 4px 9px;
+  background: transparent;
+  cursor: pointer;
+  transition: color .2s ease, border-color .2s ease, background-color .2s ease;
+}
+.btn-mini:hover { color: var(--risk); border-color: rgba(244, 63, 94, .45); background: rgba(244, 63, 94, .07); }
+
+/* --- Control segmentado (resolución del eje) ----------------------------- */
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.seg-btn {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color .2s ease, color .2s ease;
+}
+.seg-btn:hover { color: var(--ink); }
+.seg-btn.is-active { background: rgba(56, 189, 248, .16); color: var(--info); }
+
+/* --- Chips de parámetros clínicos ---------------------------------------- */
+.chip {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 7px 9px;
+  transition: border-color .2s ease;
+}
+.chip:hover { border-color: var(--border-strong); }
+.chip-label {
+  font-size: 10px;
+  color: var(--ink-3);
+  letter-spacing: .02em;
+  line-height: 1.2;
+}
+.chip-value {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--info);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+/* El límite de bolo es una restricción de seguridad: ocupa la fila completa
+   y se dispone en horizontal para que destaque sobre el resto de parámetros. */
+.chip-alert {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  border-color: rgba(244, 63, 94, .28);
+  background: rgba(244, 63, 94, .07);
+}
+.chip-alert .chip-value { color: var(--risk); font-size: 13px; }
+
+/* --- Panel hundido (fila del control con IA) ----------------------------- */
+.panel-sunk {
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 13px;
+}
+
+/* --- Selector de paciente (desplegable agrupado) ------------------------- */
+.selector-paciente {
+  width: 100%;
+  background-color: var(--surface-sunk);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  padding: 11px 36px 11px 13px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239fb0c9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.selector-paciente:hover { border-color: #3b5375; }
+.selector-paciente optgroup {
+  background: var(--surface);
+  color: var(--info);
+  font-weight: 600;
+  font-style: normal;
+}
+.selector-paciente option { background: var(--surface); color: var(--ink); padding: 6px; }
+
+/* Lista de pacientes del modo offline */
+.patient-btn {
+  width: 100%;
+  text-align: left;
+  padding: 11px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-sunk);
+  cursor: pointer;
+  transition: border-color .2s ease, background-color .2s ease, transform .15s ease;
+}
+.patient-btn:hover { border-color: #3b5375; background: #15203553; }
+.patient-btn.is-active {
+  border-color: var(--info);
+  background: rgba(56, 189, 248, .09);
+  box-shadow: inset 2px 0 0 var(--info);
+}
+
+/* --- Formulario de paciente ---------------------------------------------- */
 #formPaciente input,
 #formPaciente select,
 #formPaciente textarea {
   width: 100%;
-  background: #0f172a;
-  border: 1px solid #334155;
-  border-radius: 0.375rem;
-  padding: 0.375rem 0.625rem;
-  font-size: 0.75rem;
-  color: #e2e8f0;
+  background: var(--surface-sunk);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  padding: 9px 11px;
+  font-size: 13px;
+  color: var(--ink);
+  transition: border-color .2s ease, box-shadow .2s ease;
 }
+#formPaciente input::placeholder,
+#formPaciente textarea::placeholder { color: var(--ink-3); }
 #formPaciente input:focus,
 #formPaciente select:focus,
 #formPaciente textarea:focus {
   outline: none;
-  border-color: #38bdf8;
+  border-color: var(--info);
+  box-shadow: var(--ring);
 }
 
-/* Selector de paciente (desplegable agrupado) */
-.selector-paciente {
-  width: 100%;
-  background-color: #0f172a;
-  border: 1px solid #334155;
-  border-radius: 0.5rem;
-  padding: 0.6rem 2rem 0.6rem 0.7rem;
-  font-size: 0.8rem;
-  color: #e2e8f0;
-  cursor: pointer;
-  appearance: none;
+/* --- Deslizadores (CHO / insulina) --------------------------------------- */
+input[type="range"] {
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.7rem center;
-  transition: border-color .25s ease, box-shadow .25s ease;
+  appearance: none;
+  width: 100%;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
 }
-.selector-paciente:hover { border-color: #475569; }
-.selector-paciente:focus {
-  outline: none;
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
 }
-.selector-paciente optgroup {
-  background: #0f172a;
-  color: #38bdf8;
-  font-weight: 600;
-  font-style: normal;
+input[type="range"]::-moz-range-track {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
 }
-.selector-paciente option {
-  background: #0f172a;
-  color: #e2e8f0;
-  padding: 6px;
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6.5px;
+  border-radius: 999px;
+  background: currentColor;
+  border: 2px solid var(--bg);
+  box-shadow: 0 0 0 1px currentColor, 0 2px 6px rgba(0, 0, 0, .5);
+  transition: transform .15s ease;
 }
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: currentColor;
+  border: 2px solid var(--bg);
+  box-shadow: 0 0 0 1px currentColor;
+}
+input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.12); }
+.range-cho { color: var(--warn); }
+.range-ins { color: var(--info); }
 
-/* Scrollbar minimalista para tema oscuro */
-::-webkit-scrollbar { width: 9px; height: 9px; }
-::-webkit-scrollbar-track { background: #0f172a; }
-::-webkit-scrollbar-thumb { background: #334155; border-radius: 6px; }
-::-webkit-scrollbar-thumb:hover { background: #475569; }
+/* --- Interruptor (control con IA) ---------------------------------------- */
+.switch {
+  width: 46px; height: 26px;
+  border-radius: 999px;
+  background: #2b3f5e;
+  position: relative;
+  cursor: pointer;
+  flex: none;
+  transition: background-color .3s ease, box-shadow .3s ease;
+}
+.switch.on { background: linear-gradient(180deg, #34d399, #10b981); box-shadow: 0 0 14px rgba(16, 185, 129, .4); }
+.switch .knob {
+  position: absolute; top: 3px; left: 3px;
+  width: 20px; height: 20px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .45);
+  transition: transform .3s cubic-bezier(.4, 0, .2, 1);
+}
+.switch.on .knob { transform: translateX(20px); }
 
-/* Punto de estado pulsante */
+/* --- Punto de estado ------------------------------------------------------ */
 .status-dot {
-  width: 9px; height: 9px; border-radius: 9999px;
-  background: #34d399; box-shadow: 0 0 8px #34d399;
-  animation: pulseDot 1.6s ease-in-out infinite;
+  width: 8px; height: 8px;
+  border-radius: 999px;
+  background: var(--ok);
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, .15);
+  animation: pulseDot 2.2s ease-in-out infinite;
 }
 @keyframes pulseDot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(1.35); }
+  0%, 100% { opacity: 1;  box-shadow: 0 0 0 3px rgba(52, 211, 153, .15); }
+  50%      { opacity: .75; box-shadow: 0 0 0 6px rgba(52, 211, 153, .05); }
 }
 
-/* Interruptor (toggle) del Agente RL */
-.switch {
-  width: 48px; height: 26px; border-radius: 9999px;
-  background: #475569; position: relative; cursor: pointer;
-  transition: background-color .3s ease; flex: none;
-}
-.switch.on { background: #10b981; box-shadow: 0 0 10px rgba(16,185,129,.4); }
-.switch .knob {
-  position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
-  border-radius: 9999px; background: #e2e8f0; transition: transform .3s ease;
-}
-.switch.on .knob { transform: translateX(22px); }
-
-/* Consola tipo terminal */
+/* --- Consola de privacidad ------------------------------------------------ */
 .terminal {
-  background: #020617; border: 1px solid #1e293b;
-  font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-size: 12px; line-height: 1.55;
+  background: var(--surface-sunk);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.65;
 }
-.terminal .line { white-space: pre-wrap; word-break: break-all; }
+.terminal .line { white-space: pre-wrap; word-break: break-word; }
+.terminal .line:nth-child(odd) { background: rgba(255, 255, 255, .012); }
 
-/* Modal fade */
-.modal-overlay { transition: opacity .25s ease; }
-.modal-card { transition: transform .25s ease, opacity .25s ease; }
-
-/* Barra de progreso KPI */
-.kpi-bar-fill { transition: width .6s cubic-bezier(.22,1,.36,1), background-color .3s; }
-
-/* Realce sutil de cards al hover */
-.card { transition: border-color .3s ease, box-shadow .3s ease; }
-.card:hover { border-color: #334155; }
-
-/* Indicador de pipeline */
+/* --- Indicador de pipeline ------------------------------------------------ */
 .spinner {
-  width: 14px; height: 14px; border: 2px solid #334155;
-  border-top-color: #38bdf8; border-radius: 50%;
+  width: 13px; height: 13px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--info);
+  border-radius: 50%;
   animation: spin .8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Números tabulares para datos clínicos */
-.tnum { font-variant-numeric: tabular-nums; }
+/* --- Modales -------------------------------------------------------------- */
+.modal-overlay { transition: opacity .25s ease; }
+.modal-card { transition: transform .25s cubic-bezier(.22, 1, .36, 1), opacity .25s ease; }
+
+/* ===========================================================================
+ * 4. ACCESIBILIDAD
+ * =========================================================================== */
+
+/* Foco visible y consistente para navegación por teclado. */
+:focus-visible {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respeta la preferencia del sistema por movimiento reducido. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

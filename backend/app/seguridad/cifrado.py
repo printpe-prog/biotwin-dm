@@ -15,9 +15,7 @@ una cadena verosímil generada por una PRNG.
 
 from __future__ import annotations
 
-import base64
 import hashlib
-import hmac
 import json
 import os
 from dataclasses import dataclass, field
@@ -60,10 +58,6 @@ class MotorCifrado:
         """Descifra y verifica un token Fernet; lanza si fue manipulado."""
         crudo = self._fernet.decrypt(token.encode("ascii"))
         return json.loads(crudo)
-
-    # --- HMAC de integridad (firma de un registro) ---
-    def firmar(self, datos: bytes) -> str:
-        return hmac.new(self.clave, datos, hashlib.sha256).hexdigest()
 
     def registrar_flujo_seguridad(
         self, evento: str, payload: dict[str, Any], patient_id: str

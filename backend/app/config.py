@@ -41,6 +41,20 @@ SIM = {
     "objetivo_glucosa": 140,    # objetivo central del controlador (mg/dL)
 }
 
+
+def umbral_bolo_seguro(tdd: float) -> float:
+    """
+    Umbral de seguridad para un bolo único (U). Heurística clínica: un bolo no
+    debería exceder ~20 % de la dosis diaria total. Se redondea a 0.5 U.
+
+    Definición única, compartida por los perfiles virtuales UVA/Padova
+    (engine/pacientes.py) y los pacientes reales de OhioT1DM
+    (engine/ohio_pacientes.py), de modo que el criterio de seguridad no pueda
+    divergir entre ambas fuentes.
+    """
+    return round(max(2.0, 0.20 * tdd) * 2) / 2
+
+
 # --- CORS: orígenes permitidos para el frontend ---
 CORS_ORIGINS = [
     "http://localhost:8000",

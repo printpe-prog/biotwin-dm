@@ -5,6 +5,11 @@
  * la aplicación interactúa mediante las funciones de render exportadas, nunca
  * accediendo directamente al objeto Chart.
  *
+ * Todas las funciones de render terminan en `pintar()`, que concentra los pasos
+ * comunes (fijar la serie, actualizar la curva activa para las métricas y el
+ * badge de modo). Las líneas de referencia 70/180 se configuran una sola vez en
+ * `initChart` y persisten entre renders.
+ *
  * `Chart` es el global expuesto por el script CDN de Chart.js.
  */
 
@@ -30,21 +35,42 @@ function mostrarMarca(lbl) {
 function lineasReferencia() {
   const estiloEtiqueta = (txt, color) => ({
     display: true, content: txt, position: 'start', color,
-    backgroundColor: 'rgba(2,6,23,0.7)', font: { size: 9, family: 'monospace' },
+    backgroundColor: 'rgba(6,11,22,0.88)', font: { size: 9.5, family: 'monospace' },
+    padding: { x: 5, y: 3 }, borderRadius: 4,
+  });
+  const linea = (valor, color) => ({
+    type: 'line', yMin: valor, yMax: valor,
+    borderColor: color, borderWidth: 1.5, borderDash: [6, 6],
+    label: estiloEtiqueta(valor + ' mg/dL', color),
   });
   return {
-    hipo: {
-      type: 'line', yMin: CONFIG.rangos.hipo, yMax: CONFIG.rangos.hipo,
-      borderColor: COLORES.hipo, borderWidth: 1.5, borderDash: [6, 6],
-      label: estiloEtiqueta(CONFIG.rangos.hipo + ' mg/dL', COLORES.hipo),
-    },
-    hiper: {
-      type: 'line', yMin: CONFIG.rangos.hiper, yMax: CONFIG.rangos.hiper,
-      borderColor: COLORES.hiper, borderWidth: 1.5, borderDash: [6, 6],
-      label: estiloEtiqueta(CONFIG.rangos.hiper + ' mg/dL', COLORES.hiper),
-    },
+    hipo: linea(CONFIG.rangos.hipo, COLORES.hipo),
+    hiper: linea(CONFIG.rangos.hiper, COLORES.hiper),
   };
 }
+
+/* =========================================================================
+ * CONSTRUCTORES DE DATASET
+ * ========================================================================= */
+
+/** Dataset de línea con los estilos base del proyecto; `opciones` los sobreescribe. */
+function serie(label, data, opciones = {}) {
+  return {
+    label, data,
+    borderWidth: 2, pointRadius: 0, tension: 0.35, spanGaps: false, order: 1,
+    ...opciones,
+  };
+}
+
+/** Dataset de línea de un solo color (borde y relleno del mismo tono). */
+function lineaColor(label, data, color, opciones = {}) {
+  return serie(label, data, { borderColor: color, backgroundColor: color, ...opciones });
+}
+
+// Colorea cada tramo de la curva según su rango glucémico.
+const segmentoPorRango = {
+  borderColor: (c) => colorPorGlucosa((c.p0.parsed.y + c.p1.parsed.y) / 2),
+};
 
 /** Inicializa el gráfico Chart.js con la configuración profesional base. */
 export function initChart() {
@@ -60,14 +86,15 @@ export function initChart() {
       layout: { padding: { top: 8, right: 8 } },
       scales: {
         x: {
+          border: { color: '#1e2d45' },
           grid: {
             color: (ctx) => {
               const lbl = (typeof ctx.index === 'number') ? chart.data.labels[ctx.index] : null;
-              return mostrarMarca(lbl) ? 'rgba(30,41,59,0.7)' : 'transparent';
+              return mostrarMarca(lbl) ? 'rgba(30,45,69,0.55)' : 'transparent';
             },
           },
           ticks: {
-            color: '#64748b', autoSkip: false, maxRotation: 0,
+            color: '#6b7d99', autoSkip: false, maxRotation: 0, padding: 6,
             font: { family: 'monospace', size: 10 },
             callback(value) {
               const lbl = this.getLabelForValue(value);
@@ -78,27 +105,33 @@ export function initChart() {
         y: {
           suggestedMin: 40,
           suggestedMax: 300,
-          grid: { color: 'rgba(30,41,59,0.7)' },
+          border: { display: false },
+          grid: { color: 'rgba(30,45,69,0.55)' },
           ticks: {
-            color: '#64748b', font: { family: 'monospace', size: 10 },
+            color: '#6b7d99', font: { family: 'monospace', size: 10 }, padding: 8,
             callback: (v) => v + ' mg/dL',
           },
         },
       },
       plugins: {
         legend: {
+          align: 'end',
           labels: {
-            color: '#cbd5e1', font: { size: 11 }, usePointStyle: true, boxWidth: 8,
+            color: '#9fb0c9', font: { size: 11.5 }, usePointStyle: true,
+            boxWidth: 8, boxHeight: 8, padding: 16,
             // Oculta datasets auxiliares internos (prefijo '_')
             filter: (item) => !String(item.text).startsWith('_'),
           },
         },
         tooltip: {
-          backgroundColor: '#0f172a',
-          borderColor: '#334155',
+          backgroundColor: 'rgba(14,23,39,0.96)',
+          borderColor: '#2b3f5e',
           borderWidth: 1,
-          titleColor: '#e2e8f0',
-          bodyColor: '#cbd5e1',
+          titleColor: '#e8eef7',
+          bodyColor: '#9fb0c9',
+          padding: 10,
+          cornerRadius: 8,
+          usePointStyle: true,
           titleFont: { family: 'monospace' },
           bodyFont: { family: 'monospace' },
           callbacks: {
@@ -109,6 +142,7 @@ export function initChart() {
             },
           },
         },
+        // Constantes: se fijan una vez y persisten en todos los renders.
         annotation: { annotations: lineasReferencia() },
       },
     },
@@ -148,6 +182,25 @@ function aplicarResolucion() {
 }
 
 /**
+ * Cola común de todas las funciones de render.
+ *
+ * @param {object}   cfg
+ * @param {string[]} [cfg.labels]   etiquetas del eje X (si se omiten, se conservan)
+ * @param {object[]}  cfg.datasets  datasets de Chart.js
+ * @param {object}   [cfg.curva]    serie activa para las métricas: { valores, ultimo }
+ * @param {object}   [cfg.badge]    badge de modo: { texto, tono }
+ * @param {boolean}  [cfg.metricas] recalcular TIR/TBR desde la curva local
+ */
+function pintar({ labels, datasets, curva, badge, metricas = false }) {
+  if (labels) chart.data.labels = labels;
+  chart.data.datasets = datasets;
+  fijarSeriesYActualizar();
+  if (curva) estado.curvaActual = curva;
+  if (badge) setBadgeModo(badge.texto, badge.tono);
+  if (metricas) updateAllMetrics();
+}
+
+/**
  * Cambia la resolución temporal de la TRAYECTORIA: 'detalle' (5 min) o 'hora'
  * (un punto por hora). Re-muestrea la serie ya calculada, sin volver a simular.
  */
@@ -166,20 +219,13 @@ export function renderBasal(perfil) {
     bolo_u: 0, cho_g: 0, origen: 'historico',
   }));
 
-  chart.data.labels = hist.map((p) => etiquetaTiempo(p.t));
-  chart.data.datasets = [
-    {
-      label: 'Glucemia histórica (CGM)', data: histVals,
-      borderColor: COLORES.neutral, backgroundColor: COLORES.neutral,
-      borderWidth: 2, pointRadius: 0, tension: 0.35, spanGaps: false, order: 1,
-    },
-  ];
-  chart.options.plugins.annotation.annotations = lineasReferencia();
-  fijarSeriesYActualizar();
-
-  estado.curvaActual = { valores: histVals, ultimo: histVals[histVals.length - 1] };
-  setBadgeModo('Estado basal', 'sky');
-  updateAllMetrics();
+  pintar({
+    labels: hist.map((p) => etiquetaTiempo(p.t)),
+    datasets: [lineaColor('Glucemia histórica (CGM)', histVals, COLORES.neutral)],
+    curva: { valores: histVals, ultimo: histVals[histVals.length - 1] },
+    badge: { texto: 'Estado basal', tono: 'sky' },
+    metricas: true,
+  });
 }
 
 /** Simulación predictiva completa (histórico + predicción + banda de incertidumbre). */
@@ -221,83 +267,67 @@ export function renderSimulacion(perfil, gCHO, uInsulina, esFallback) {
     bolo_u: p.t === 0 ? uInsulina : 0, cho_g: p.t === 0 ? gCHO : 0, origen: 'simulado',
   }));
 
-  chart.data.labels = labels;
-  chart.data.datasets = [
-    // Banda de incertidumbre (±1σ): datasets auxiliares rellenos entre sí
-    { label: '_bandaInf', data: bandL, borderWidth: 0, pointRadius: 0, fill: false, tension: 0.35, order: 5 },
-    { label: 'Incertidumbre ±1σ', data: bandU, borderWidth: 0, pointRadius: 0,
-      backgroundColor: COLORES.bandaFill, fill: '-1', tension: 0.35, order: 5 },
-    // Histórico (sky-400)
-    { label: 'Glucemia histórica (CGM)', data: histVals, borderColor: COLORES.neutral,
-      backgroundColor: COLORES.neutral, borderWidth: 2, pointRadius: 0, tension: 0.35,
-      spanGaps: false, order: 1 },
-    // Predicción con color dinámico por rango glucémico (segment styling)
-    { label: 'Predicción gemelo digital', data: predVals, borderColor: COLORES.euglucemia,
-      borderWidth: 2.5, pointRadius: 0, tension: 0.35, spanGaps: false, order: 1,
-      segment: { borderColor: (c) => colorPorGlucosa((c.p0.parsed.y + c.p1.parsed.y) / 2) } },
-  ];
-  chart.options.plugins.annotation.annotations = lineasReferencia();
-  fijarSeriesYActualizar();
-
   const etiquetaModo = esFallback ? 'Predicción · PID (Fallback)'
     : (estado.rlActivo ? 'Predicción · RL' : 'Predicción · PID');
-  estado.curvaActual = { valores: todosGlucosa, ultimo: predVals[predVals.length - 1] };
-  setBadgeModo(etiquetaModo, esFallback ? 'rose' : 'emerald');
 
-  updateAllMetrics();
+  pintar({
+    labels,
+    datasets: [
+      // Banda de incertidumbre (±1σ): datasets auxiliares rellenos entre sí
+      serie('_bandaInf', bandL, { borderWidth: 0, fill: false, order: 5 }),
+      serie('Incertidumbre ±1σ', bandU, {
+        borderWidth: 0, backgroundColor: COLORES.bandaFill, fill: '-1', order: 5,
+      }),
+      lineaColor('Glucemia histórica (CGM)', histVals, COLORES.neutral),
+      // Predicción con color dinámico por rango glucémico (segment styling)
+      serie('Predicción gemelo digital', predVals, {
+        borderColor: COLORES.euglucemia, borderWidth: 2.5, segment: segmentoPorRango,
+      }),
+    ],
+    curva: { valores: todosGlucosa, ultimo: predVals[predVals.length - 1] },
+    badge: { texto: etiquetaModo, tono: esFallback ? 'rose' : 'emerald' },
+    metricas: true,
+  });
 }
 
 /**
  * Dibuja una trayectoria devuelta por el BACKEND (motor real UVA/Padova).
  * `puntos` = [{ t_min, glucosa, ... }]. Colorea por rango glucémico.
+ * Las métricas las fija el backend (`setMetricasBackend`), no se recalculan.
  */
 export function renderTrayectoria(puntos, etiquetaModo, tono) {
-  const labels = puntos.map((p) => etiquetaTiempo(p.t_min));
   const vals = puntos.map((p) => p.glucosa);
-  chart.data.labels = labels;
-  chart.data.datasets = [
-    {
-      label: 'Predicción gemelo digital (UVA/Padova)', data: vals,
-      borderColor: COLORES.euglucemia, backgroundColor: COLORES.euglucemia,
-      borderWidth: 2.5, pointRadius: 0, tension: 0.35, spanGaps: false, order: 1,
-      segment: { borderColor: (c) => colorPorGlucosa((c.p0.parsed.y + c.p1.parsed.y) / 2) },
-    },
-  ];
-  chart.options.plugins.annotation.annotations = lineasReferencia();
-  fijarSeriesYActualizar();
-  estado.curvaActual = { valores: vals, ultimo: vals[vals.length - 1] };
-  setBadgeModo(etiquetaModo, tono);
+  pintar({
+    labels: puntos.map((p) => etiquetaTiempo(p.t_min)),
+    datasets: [
+      lineaColor('Predicción gemelo digital (UVA/Padova)', vals, COLORES.euglucemia, {
+        borderWidth: 2.5, segment: segmentoPorRango,
+      }),
+    ],
+    curva: { valores: vals, ultimo: vals[vals.length - 1] },
+    badge: { texto: etiquetaModo, tono },
+  });
 }
 
 /** Dibuja la validación (OE4): serie real vs predicha del backend. */
 export function renderValidacion(labels, serieReal, seriePred) {
-  chart.data.labels = labels;
-  chart.data.datasets = [
-    {
-      label: 'Serie de referencia (CGM)', data: serieReal,
-      borderColor: COLORES.neutral, backgroundColor: COLORES.neutral,
-      borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: false, order: 1,
-    },
-    {
-      label: 'Predicción gemelo digital', data: seriePred,
-      borderColor: COLORES.interp, backgroundColor: COLORES.interp,
-      borderWidth: 2, borderDash: [5, 4], pointRadius: 0, tension: 0.3, spanGaps: false, order: 0,
-    },
-  ];
-  chart.options.plugins.annotation.annotations = lineasReferencia();
-  fijarSeriesYActualizar();
+  pintar({
+    labels,
+    datasets: [
+      lineaColor('Serie de referencia (CGM)', serieReal, COLORES.neutral, { tension: 0.3 }),
+      lineaColor('Predicción gemelo digital', seriePred, COLORES.interp, {
+        tension: 0.3, borderDash: [5, 4], order: 0,
+      }),
+    ],
+  });
 }
 
 /** Dibuja la serie cruda de OhioT1DM (con gaps y spikes). */
 export function renderOhioRaw(raw, labels) {
-  chart.data.labels = labels;
-  chart.data.datasets = [
-    { label: 'OhioT1DM raw (CGM crudo)', data: raw, borderColor: COLORES.neutral,
-      backgroundColor: COLORES.neutral, borderWidth: 2, pointRadius: 0, tension: 0.25,
-      spanGaps: false, order: 1 },
-  ];
-  chart.options.plugins.annotation.annotations = lineasReferencia();
-  fijarSeriesYActualizar();
+  pintar({
+    labels,
+    datasets: [lineaColor('OhioT1DM raw (CGM crudo)', raw, COLORES.neutral, { tension: 0.25 })],
+  });
 }
 
 /** Dibuja la serie procesada: interpolación lineal resaltada + suavizado MM-5. */
@@ -309,16 +339,15 @@ export function renderOhioProcesado(raw, interpolado, suavizado) {
     return (eraNull || vecinoNull) ? v : null;
   });
 
-  // Restaura las etiquetas a resolución completa (renderOhioRaw pudo haberlas
-  // re-muestreado a horaria), de modo que el snapshot quede alineado con los datos.
-  if (seriesCompletas) chart.data.labels = seriesCompletas.labels.slice();
-
-  chart.data.datasets = [
-    { label: 'Serie suavizada (MM-5)', data: suavizado, borderColor: COLORES.euglucemia,
-      backgroundColor: COLORES.euglucemia, borderWidth: 2.5, pointRadius: 0, tension: 0.35, order: 1 },
-    { label: 'Interpolación lineal', data: interpFill, borderColor: COLORES.interp,
-      backgroundColor: COLORES.interp, borderWidth: 2, borderDash: [4, 4], pointRadius: 0,
-      tension: 0, spanGaps: false, order: 0 },
-  ];
-  fijarSeriesYActualizar();
+  pintar({
+    // Restaura las etiquetas a resolución completa (renderOhioRaw pudo haberlas
+    // re-muestreado a horaria), de modo que el snapshot quede alineado con los datos.
+    labels: seriesCompletas ? seriesCompletas.labels.slice() : undefined,
+    datasets: [
+      lineaColor('Serie suavizada (MM-5)', suavizado, COLORES.euglucemia, { borderWidth: 2.5 }),
+      lineaColor('Interpolación lineal', interpFill, COLORES.interp, {
+        borderDash: [4, 4], tension: 0, order: 0,
+      }),
+    ],
+  });
 }
