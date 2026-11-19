@@ -6,7 +6,7 @@
  * resto se resuelve por imports.
  */
 
-import { CONFIG } from './config.js';
+import { CONFIG, COLORES } from './config.js';
 import { DOM, cacheDOM } from './ui/dom.js';
 import { estado } from './state.js';
 import { PACIENTES, sesionActiva, cargarPacientesGuardados, eliminarPaciente } from './data/pacientes.js';
@@ -32,6 +32,22 @@ function dependenciasDisponibles() {
   return typeof window.Chart !== 'undefined';
 }
 
+/** Refleja en el encabezado qué motor está activo (real vs. offline). */
+function setEstadoConexion(texto, tono) {
+  // Solo se cambia el color: las clases de tamaño y visibilidad responsiva del
+  // rótulo viven en el HTML y no deben perderse al actualizar el estado.
+  const colores = { emerald: COLORES.euglucemia, amber: COLORES.hiper, slate: '#9fb0c9' };
+  const color = colores[tono] || colores.slate;
+  if (DOM.estadoConexion) {
+    DOM.estadoConexion.textContent = texto;
+    DOM.estadoConexion.style.color = color;
+  }
+  if (DOM.estadoDot) {
+    DOM.estadoDot.style.background = color;
+    DOM.estadoDot.style.boxShadow = `0 0 0 3px ${color}26`;
+  }
+}
+
 function mostrarErrorDependencias() {
   const aviso = document.createElement('div');
   aviso.className = 'fixed inset-x-0 top-0 z-50 bg-rose-900 text-rose-100 text-sm ' +
@@ -54,11 +70,24 @@ function construirSelector() {
     const btn = document.createElement('button');
     btn.dataset.idx = idx;
     btn.className = 'patient-btn';
-    const etiquetaCustom = p.custom
-      ? ' <span class="badge badge-info" style="padding:2px 6px; font-size:9.5px;">propio</span>' : '';
-    btn.innerHTML =
-      `<p class="text-[12.5px] font-medium text-[var(--ink)] pr-12 leading-snug">${p.alias}${etiquetaCustom}</p>` +
-      `<p class="text-[10.5px] font-mono text-[var(--ink-3)] mt-1">${p.id} · ${p.tipo}</p>`;
+
+    // Se construye con nodos + textContent (NO innerHTML): el alias es texto libre
+    // del usuario persistido en localStorage, así que interpolarlo como HTML sería
+    // un vector de XSS almacenado. textContent lo neutraliza por completo.
+    const linea1 = document.createElement('p');
+    linea1.className = 'text-[12.5px] font-medium text-[var(--ink)] pr-12 leading-snug';
+    linea1.textContent = p.alias;
+    if (p.custom) {
+      const badge = document.createElement('span');
+      badge.className = 'badge badge-info ml-1.5 align-middle';
+      badge.style.cssText = 'padding:2px 6px; font-size:9.5px;';
+      badge.textContent = 'propio';
+      linea1.appendChild(badge);
+    }
+    const linea2 = document.createElement('p');
+    linea2.className = 'text-[10.5px] font-mono text-[var(--ink-3)] mt-1';
+    linea2.textContent = `${p.id} · ${p.tipo}`;
+    btn.append(linea1, linea2);
     btn.addEventListener('click', () => cargarPerfil(idx));
     fila.appendChild(btn);
 
@@ -214,6 +243,7 @@ function continuarConFallback() {
  * ========================================================================= */
 async function iniciarModoBackend() {
   const s = api.salud || {};
+  setEstadoConexion('Motor real · backend conectado', 'emerald');
   log('SYSTEM', `Backend conectado · ${s.motor || 'simglucose'} · RL ${s.rl_disponible ? 'entrenado (PPO)' : 'no disponible → PID'}`, 'text-emerald-400');
   log('SYSTEM', 'Cifrado Fernet/AES real en servidor · cumplimiento Ley N° 19.628 y N° 21.719', 'text-slate-400');
 
@@ -313,6 +343,7 @@ function continuarConFallbackBackend() {
 
 async function correrBackend(p, gCHO, uIns, usarRL, esFallback) {
   DOM.btnSimular.disabled = true;
+  if (DOM.btnSimularLabel) DOM.btnSimularLabel.textContent = 'Simulando…';
   try {
     const res = await apiSimular({
       patient_name: p.simglucose_name, cho_g: gCHO, bolus_u: uIns,
@@ -330,6 +361,7 @@ async function correrBackend(p, gCHO, uIns, usarRL, esFallback) {
     log('ERROR', 'Fallo en la simulación: ' + e.message, 'text-rose-400');
   } finally {
     DOM.btnSimular.disabled = false;
+    if (DOM.btnSimularLabel) DOM.btnSimularLabel.textContent = 'Ejecutar simulación predictiva';
   }
 }
 
@@ -473,6 +505,7 @@ async function init() {
     alEditar: (idx) => { construirSelector(); cargarPerfil(idx); },
   });
 
+  setEstadoConexion('Motor local · modo offline', 'amber');
   log('SYSTEM', 'BioTwin-DM (modo offline) · modelo compartimental tipo UVA/Padova · integración RK4', 'text-emerald-400');
   log('SYSTEM', 'Backend no detectado · cifrado simulado · inicie el servidor para el motor real', 'text-amber-400');
 

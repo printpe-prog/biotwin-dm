@@ -2,15 +2,15 @@
 deploy.py — Sube el build de producción al servidor FTP vía FTPS explícito.
 
 Uso (PowerShell):
-    $env:FTP_PASS = "<contraseña>"; python deploy.py
+    $env:FTP_USER = "<usuario>"; $env:FTP_PASS = "<contraseña>"; python deploy.py
 
 Uso (bash):
-    FTP_PASS=<contraseña> python deploy.py
+    FTP_USER=<usuario> FTP_PASS=<contraseña> python deploy.py
 
-La contraseña NUNCA se escribe en este archivo: se lee de la variable de entorno
-FTP_PASS y se entrega directamente a la conexión FTPS. Así no aparece en la
-línea de comandos, por lo que no queda visible en la lista de procesos ni en el
-historial del shell.
+Ni el usuario ni la contraseña se escriben en este archivo: se leen de las
+variables de entorno FTP_USER y FTP_PASS, y la contraseña se entrega directamente
+a la conexión FTPS. Así no viaja en la línea de comandos, por lo que no queda
+visible en la lista de procesos ni en el historial del shell.
 
 Solo usa la biblioteca estándar (`ftplib`), de modo que no hace falta curl ni
 una segunda cadena de herramientas.
@@ -23,8 +23,10 @@ import sys
 from ftplib import FTP_TLS, all_errors
 from pathlib import Path
 
-HOST = "ftp.hostlan.cl"
-USUARIO = "biotwin@hostlan.cl"
+# Credenciales y host por variable de entorno: este repositorio es publico,
+# de modo que ni el usuario ni la contrasena quedan versionados.
+HOST = os.environ.get("FTP_HOST", "ftp.hostlan.cl")
+USUARIO = os.environ.get("FTP_USER")
 ARCHIVO = "BioTwin_DM_Prototype_v1.html"
 RUTA_SERVIDOR = "public_html/biotwin/index.html"  # ruta pública en el servidor
 
@@ -43,11 +45,11 @@ def _asegurar_directorio(ftp: FTP_TLS, carpetas: list[str]) -> None:
 
 def main() -> None:
     clave = os.environ.get("FTP_PASS")
-    if not clave:
+    if not USUARIO or not clave:
         sys.exit(
-            "Falta la contrasena FTP.\n"
-            "  PowerShell: $env:FTP_PASS = \"<contrasena>\"; python deploy.py\n"
-            "  bash:       FTP_PASS=<contrasena> python deploy.py"
+            "Faltan las credenciales FTP.\n"
+            "  PowerShell: $env:FTP_USER = \"<usuario>\"; $env:FTP_PASS = \"<contrasena>\"; python deploy.py\n"
+            "  bash:       FTP_USER=<usuario> FTP_PASS=<contrasena> python deploy.py"
         )
 
     local = RAIZ / ARCHIVO

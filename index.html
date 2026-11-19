@@ -12,6 +12,9 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 
+  <!-- Favicon incrustado (glifo del gemelo digital, sin petición externa) -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2334d399' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12h4l2 6 4-12 2 6h6'/%3E%3C/svg%3E" />
+
   <!-- Tipografía (con respaldo del sistema si no hay conexión) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -72,8 +75,8 @@
       </div>
 
       <div class="flex items-center gap-2.5">
-        <span class="status-dot"></span>
-        <span class="hidden sm:inline text-[12.5px] font-medium text-[var(--ok)]">Sistema operativo</span>
+        <span id="estadoDot" class="status-dot"></span>
+        <span id="estadoConexion" class="hidden sm:inline text-[12.5px] font-medium text-[var(--ink-2)]">Conectando…</span>
         <span class="hidden md:inline text-[11px] font-mono text-[var(--ink-3)] ml-2 pl-3 border-l border-[var(--border)]">
           INSW410
         </span>
@@ -128,7 +131,8 @@
                   <span id="valCHO">60</span><span class="text-[11px] text-[var(--ink-3)] ml-0.5">g</span>
                 </span>
               </label>
-              <input id="inputCHO" class="range-cho" type="range" min="0" max="120" step="5" value="60" />
+              <input id="inputCHO" class="range-cho" type="range" min="0" max="120" step="5" value="60"
+                     aria-label="Carbohidratos ingeridos, en gramos" />
             </div>
 
             <div>
@@ -138,12 +142,13 @@
                   <span id="valInsulina">4.0</span><span class="text-[11px] text-[var(--ink-3)] ml-0.5">U</span>
                 </span>
               </label>
-              <input id="inputInsulina" class="range-ins" type="range" min="0" max="25" step="0.5" value="4" />
+              <input id="inputInsulina" class="range-ins" type="range" min="0" max="25" step="0.5" value="4"
+                     aria-label="Bolo de insulina, en unidades" />
             </div>
 
             <button id="btnSimular" class="btn btn-primary">
               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 3 20 12 6 21 6 3"/></svg>
-              Ejecutar simulación predictiva
+              <span id="btnSimularLabel">Ejecutar simulación predictiva</span>
             </button>
           </div>
         </section>
@@ -163,7 +168,7 @@
             <div class="flex items-center gap-3 flex-none">
               <span id="badgeRL" class="badge badge-ok">IA activa</span>
               <div id="toggleRL" class="switch on" role="switch" aria-checked="true" tabindex="0"
-                   aria-label="Activar control con IA">
+                   aria-label="Activar control con inteligencia artificial (agente RL)">
                 <span class="knob"></span>
               </div>
             </div>

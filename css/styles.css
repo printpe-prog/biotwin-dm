@@ -508,4 +508,5 @@ input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.12); }
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
   }
+  .status-dot { animation: none; }
 }

@@ -45,12 +45,11 @@
 
 - **Servidor:** `ftp.hostlan.cl`
 - **Puerto:** `21` (FTPS explícito)
-- **Usuario:** `biotwin@hostlan.cl`
-- **Contraseña:** *(no guardar aquí — usar variable de entorno `FTP_PASS`)*
+- **Usuario y contraseña:** *(no guardar aquí — usar variables de entorno `FTP_USER` y `FTP_PASS`)*
 
 Para deploy manual (PowerShell):
 ```powershell
-$env:FTP_PASS = "<tu_contraseña>"; python deploy.py
+$env:FTP_USER = "<tu_usuario>"; $env:FTP_PASS = "<tu_contraseña>"; python deploy.py
 ```
 
 `deploy.py` entrega la contraseña directamente a la conexión FTPS, de modo que
@@ -60,8 +59,8 @@ no viaja como argumento en la línea de comandos ni queda en el historial.
 
 ## Repositorio GitHub
 
-- **Repo:** `https://github.com/felipevera2002-coder/biotwin-dm`
-- **Usuario:** `felipevera2002-coder`
+- **Repo:** `https://github.com/printpe-prog/biotwin-dm`
+- **Usuario:** `printpe-prog`
 - **Branch principal:** `main`
 - **Auth:** Personal Access Token (PAT) — nunca usuario/contraseña
 
