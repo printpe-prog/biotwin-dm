@@ -12,6 +12,11 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 
+  <!-- Tipografía (con respaldo del sistema si no hay conexión) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
   <!-- Configuración del Tailwind Play CDN (debe ir tras el script del CDN) -->
   <script>
     tailwind.config = {
@@ -20,7 +25,7 @@
         extend: {
           fontFamily: {
             mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
-            sans: ['Inter', 'system-ui', 'Segoe UI', 'sans-serif'],
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'sans-serif'],
           },
           colors: {
             // Semántica glucémica del proyecto
@@ -37,162 +42,553 @@
   <!-- Estilos propios del prototipo -->
   <style>
 /* ===========================================================================
- * styles.css — Estilos propios del prototipo (complementan a Tailwind CDN).
- * Modo oscuro clínico de alta tecnología.
+ * styles.css — Sistema de diseño de BioTwin-DM.
+ *
+ * Tema oscuro clínico. El color NO es decorativo: codifica el estado glucémico
+ * (verde = en rango, ámbar = hiperglicemia, rojo = hipoglicemia, azul = dato
+ * neutral/histórico), y esa semántica se respeta en toda la interfaz.
+ *
+ * Organización:
+ *   1. Tokens          — variables de color, espacio, radios y sombras
+ *   2. Base            — tipografía, fondo, foco, scrollbars
+ *   3. Componentes     — tarjetas, badges, KPIs, botones, chips, controles
+ *   4. Accesibilidad   — foco visible y movimiento reducido
+ *
+ * Las clases de componente evitan repetir cadenas largas de utilidades en el
+ * HTML y en el JavaScript: el JS alterna modificadores (p. ej. `.badge-ok`)
+ * en lugar de reescribir listas de clases completas.
  * =========================================================================== */
 
-/* Base oscura clínica */
-html, body { background-color: #020617; /* slate-950 */ }
-body { color: #e2e8f0; }
+/* ===========================================================================
+ * 1. TOKENS
+ * =========================================================================== */
+:root {
+  /* Superficies: del fondo más profundo a la tarjeta elevada */
+  --bg:            #060b16;
+  --surface:       #0e1727;
+  --surface-2:     #131e32;
+  --surface-sunk:  #0a111e;
 
-/* Campos del formulario de nuevo paciente */
+  /* Bordes */
+  --border:        #1e2d45;
+  --border-strong: #2b3f5e;
+
+  /* Tinta (texto) */
+  --ink:    #e8eef7;
+  --ink-2:  #9fb0c9;
+  --ink-3:  #6b7d99;
+
+  /* Semántica glucémica */
+  --ok:     #34d399;   /* en rango 70–180 */
+  --warn:   #fbbf24;   /* hiperglicemia */
+  --risk:   #f43f5e;   /* hipoglicemia */
+  --info:   #38bdf8;   /* histórico / dato neutral */
+  --accent: #34d399;   /* acción primaria */
+
+  /* Radios */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+
+  /* Sombras: elevación real, no un halo difuso */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .35);
+  --shadow-2: 0 4px 16px -4px rgba(0, 0, 0, .5), 0 1px 3px rgba(0, 0, 0, .3);
+  --shadow-3: 0 18px 40px -12px rgba(0, 0, 0, .65);
+
+  --ring: 0 0 0 3px rgba(56, 189, 248, .25);
+}
+
+/* ===========================================================================
+ * 2. BASE
+ * =========================================================================== */
+html, body { background-color: var(--bg); }
+
+body {
+  color: var(--ink);
+  font-family: Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Luz ambiental sutil: evita el negro plano sin distraer de los datos. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(900px 500px at 15% -10%, rgba(56, 189, 248, .07), transparent 70%),
+    radial-gradient(800px 500px at 85% -5%, rgba(52, 211, 153, .06), transparent 70%);
+}
+body > * { position: relative; z-index: 1; }
+
+/* Números tabulares: las cifras clínicas no deben "bailar" al actualizarse. */
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* Rótulos de sección en versalita */
+.eyebrow {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .085em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Scrollbars (WebKit + Firefox) */
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: #3b5375; background-clip: content-box; }
+
+/* ===========================================================================
+ * 3. COMPONENTES
+ * =========================================================================== */
+
+/* --- Tarjeta ------------------------------------------------------------- */
+.card {
+  background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2);
+  transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
+}
+.card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-3);
+}
+
+/* Encabezado de tarjeta: icono + título, separados por un filete */
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.card-head svg { flex: none; }
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
+
+/* --- Badge --------------------------------------------------------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.badge-ok     { background: rgba(52, 211, 153, .13); color: var(--ok);   border-color: rgba(52, 211, 153, .32); }
+.badge-warn   { background: rgba(251, 191, 36, .13); color: var(--warn); border-color: rgba(251, 191, 36, .32); }
+.badge-risk   { background: rgba(244, 63, 94, .13);  color: var(--risk); border-color: rgba(244, 63, 94, .32); }
+.badge-info   { background: rgba(56, 189, 248, .13); color: var(--info); border-color: rgba(56, 189, 248, .32); }
+.badge-muted  { background: rgba(107, 125, 153, .14); color: var(--ink-2); border-color: var(--border-strong); }
+
+/* --- KPI ----------------------------------------------------------------- */
+.kpi-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.kpi-value {
+  font-size: 38px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-unit {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.kpi-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.kpi-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width .7s cubic-bezier(.22, 1, .36, 1), background-color .3s ease;
+}
+.kpi-note { font-size: 11.5px; color: var(--ink-3); line-height: 1.45; }
+
+/* --- Botones ------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 13px;
+  font-weight: 550;
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color .2s ease, border-color .2s ease, color .2s ease,
+              transform .12s ease, box-shadow .2s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+
+.btn-primary {
+  background: linear-gradient(180deg, #34d399 0%, #10b981 100%);
+  color: #04221a;
+  font-weight: 650;
+  box-shadow: 0 6px 18px -6px rgba(16, 185, 129, .55);
+}
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #4ade9f 0%, #14c88c 100%);
+  box-shadow: 0 8px 22px -6px rgba(16, 185, 129, .7);
+}
+
+.btn-secondary {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  color: var(--ink);
+}
+.btn-secondary:hover:not(:disabled) { background: #1a2941; border-color: #3b5375; }
+
+.btn-dashed {
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+.btn-dashed:hover { border-color: var(--info); color: var(--info); background: rgba(56, 189, 248, .06); }
+
+/* Botón diminuto de la cabecera de consola */
+.btn-mini {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 4px 9px;
+  background: transparent;
+  cursor: pointer;
+  transition: color .2s ease, border-color .2s ease, background-color .2s ease;
+}
+.btn-mini:hover { color: var(--risk); border-color: rgba(244, 63, 94, .45); background: rgba(244, 63, 94, .07); }
+
+/* --- Control segmentado (resolución del eje) ----------------------------- */
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.seg-btn {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color .2s ease, color .2s ease;
+}
+.seg-btn:hover { color: var(--ink); }
+.seg-btn.is-active { background: rgba(56, 189, 248, .16); color: var(--info); }
+
+/* --- Chips de parámetros clínicos ---------------------------------------- */
+.chip {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 7px 9px;
+  transition: border-color .2s ease;
+}
+.chip:hover { border-color: var(--border-strong); }
+.chip-label {
+  font-size: 10px;
+  color: var(--ink-3);
+  letter-spacing: .02em;
+  line-height: 1.2;
+}
+.chip-value {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--info);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+/* El límite de bolo es una restricción de seguridad: ocupa la fila completa
+   y se dispone en horizontal para que destaque sobre el resto de parámetros. */
+.chip-alert {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  border-color: rgba(244, 63, 94, .28);
+  background: rgba(244, 63, 94, .07);
+}
+.chip-alert .chip-value { color: var(--risk); font-size: 13px; }
+
+/* --- Panel hundido (fila del control con IA) ----------------------------- */
+.panel-sunk {
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 13px;
+}
+
+/* --- Selector de paciente (desplegable agrupado) ------------------------- */
+.selector-paciente {
+  width: 100%;
+  background-color: var(--surface-sunk);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  padding: 11px 36px 11px 13px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239fb0c9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.selector-paciente:hover { border-color: #3b5375; }
+.selector-paciente optgroup {
+  background: var(--surface);
+  color: var(--info);
+  font-weight: 600;
+  font-style: normal;
+}
+.selector-paciente option { background: var(--surface); color: var(--ink); padding: 6px; }
+
+/* Lista de pacientes del modo offline */
+.patient-btn {
+  width: 100%;
+  text-align: left;
+  padding: 11px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-sunk);
+  cursor: pointer;
+  transition: border-color .2s ease, background-color .2s ease, transform .15s ease;
+}
+.patient-btn:hover { border-color: #3b5375; background: #15203553; }
+.patient-btn.is-active {
+  border-color: var(--info);
+  background: rgba(56, 189, 248, .09);
+  box-shadow: inset 2px 0 0 var(--info);
+}
+
+/* --- Formulario de paciente ---------------------------------------------- */
 #formPaciente input,
 #formPaciente select,
 #formPaciente textarea {
   width: 100%;
-  background: #0f172a;
-  border: 1px solid #334155;
-  border-radius: 0.375rem;
-  padding: 0.375rem 0.625rem;
-  font-size: 0.75rem;
-  color: #e2e8f0;
+  background: var(--surface-sunk);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  padding: 9px 11px;
+  font-size: 13px;
+  color: var(--ink);
+  transition: border-color .2s ease, box-shadow .2s ease;
 }
+#formPaciente input::placeholder,
+#formPaciente textarea::placeholder { color: var(--ink-3); }
 #formPaciente input:focus,
 #formPaciente select:focus,
 #formPaciente textarea:focus {
   outline: none;
-  border-color: #38bdf8;
+  border-color: var(--info);
+  box-shadow: var(--ring);
 }
 
-/* Selector de paciente (desplegable agrupado) */
-.selector-paciente {
-  width: 100%;
-  background-color: #0f172a;
-  border: 1px solid #334155;
-  border-radius: 0.5rem;
-  padding: 0.6rem 2rem 0.6rem 0.7rem;
-  font-size: 0.8rem;
-  color: #e2e8f0;
-  cursor: pointer;
-  appearance: none;
+/* --- Deslizadores (CHO / insulina) --------------------------------------- */
+input[type="range"] {
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.7rem center;
-  transition: border-color .25s ease, box-shadow .25s ease;
+  appearance: none;
+  width: 100%;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
 }
-.selector-paciente:hover { border-color: #475569; }
-.selector-paciente:focus {
-  outline: none;
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
 }
-.selector-paciente optgroup {
-  background: #0f172a;
-  color: #38bdf8;
-  font-weight: 600;
-  font-style: normal;
+input[type="range"]::-moz-range-track {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
 }
-.selector-paciente option {
-  background: #0f172a;
-  color: #e2e8f0;
-  padding: 6px;
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6.5px;
+  border-radius: 999px;
+  background: currentColor;
+  border: 2px solid var(--bg);
+  box-shadow: 0 0 0 1px currentColor, 0 2px 6px rgba(0, 0, 0, .5);
+  transition: transform .15s ease;
 }
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: currentColor;
+  border: 2px solid var(--bg);
+  box-shadow: 0 0 0 1px currentColor;
+}
+input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.12); }
+.range-cho { color: var(--warn); }
+.range-ins { color: var(--info); }
 
-/* Scrollbar minimalista para tema oscuro */
-::-webkit-scrollbar { width: 9px; height: 9px; }
-::-webkit-scrollbar-track { background: #0f172a; }
-::-webkit-scrollbar-thumb { background: #334155; border-radius: 6px; }
-::-webkit-scrollbar-thumb:hover { background: #475569; }
+/* --- Interruptor (control con IA) ---------------------------------------- */
+.switch {
+  width: 46px; height: 26px;
+  border-radius: 999px;
+  background: #2b3f5e;
+  position: relative;
+  cursor: pointer;
+  flex: none;
+  transition: background-color .3s ease, box-shadow .3s ease;
+}
+.switch.on { background: linear-gradient(180deg, #34d399, #10b981); box-shadow: 0 0 14px rgba(16, 185, 129, .4); }
+.switch .knob {
+  position: absolute; top: 3px; left: 3px;
+  width: 20px; height: 20px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .45);
+  transition: transform .3s cubic-bezier(.4, 0, .2, 1);
+}
+.switch.on .knob { transform: translateX(20px); }
 
-/* Punto de estado pulsante */
+/* --- Punto de estado ------------------------------------------------------ */
 .status-dot {
-  width: 9px; height: 9px; border-radius: 9999px;
-  background: #34d399; box-shadow: 0 0 8px #34d399;
-  animation: pulseDot 1.6s ease-in-out infinite;
+  width: 8px; height: 8px;
+  border-radius: 999px;
+  background: var(--ok);
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, .15);
+  animation: pulseDot 2.2s ease-in-out infinite;
 }
 @keyframes pulseDot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(1.35); }
+  0%, 100% { opacity: 1;  box-shadow: 0 0 0 3px rgba(52, 211, 153, .15); }
+  50%      { opacity: .75; box-shadow: 0 0 0 6px rgba(52, 211, 153, .05); }
 }
 
-/* Interruptor (toggle) del Agente RL */
-.switch {
-  width: 48px; height: 26px; border-radius: 9999px;
-  background: #475569; position: relative; cursor: pointer;
-  transition: background-color .3s ease; flex: none;
-}
-.switch.on { background: #10b981; box-shadow: 0 0 10px rgba(16,185,129,.4); }
-.switch .knob {
-  position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
-  border-radius: 9999px; background: #e2e8f0; transition: transform .3s ease;
-}
-.switch.on .knob { transform: translateX(22px); }
-
-/* Consola tipo terminal */
+/* --- Consola de privacidad ------------------------------------------------ */
 .terminal {
-  background: #020617; border: 1px solid #1e293b;
-  font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-size: 12px; line-height: 1.55;
+  background: var(--surface-sunk);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.65;
 }
-.terminal .line { white-space: pre-wrap; word-break: break-all; }
+.terminal .line { white-space: pre-wrap; word-break: break-word; }
+.terminal .line:nth-child(odd) { background: rgba(255, 255, 255, .012); }
 
-/* Modal fade */
-.modal-overlay { transition: opacity .25s ease; }
-.modal-card { transition: transform .25s ease, opacity .25s ease; }
-
-/* Barra de progreso KPI */
-.kpi-bar-fill { transition: width .6s cubic-bezier(.22,1,.36,1), background-color .3s; }
-
-/* Realce sutil de cards al hover */
-.card { transition: border-color .3s ease, box-shadow .3s ease; }
-.card:hover { border-color: #334155; }
-
-/* Indicador de pipeline */
+/* --- Indicador de pipeline ------------------------------------------------ */
 .spinner {
-  width: 14px; height: 14px; border: 2px solid #334155;
-  border-top-color: #38bdf8; border-radius: 50%;
+  width: 13px; height: 13px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--info);
+  border-radius: 50%;
   animation: spin .8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Números tabulares para datos clínicos */
-.tnum { font-variant-numeric: tabular-nums; }
+/* --- Modales -------------------------------------------------------------- */
+.modal-overlay { transition: opacity .25s ease; }
+.modal-card { transition: transform .25s cubic-bezier(.22, 1, .36, 1), opacity .25s ease; }
+
+/* ===========================================================================
+ * 4. ACCESIBILIDAD
+ * =========================================================================== */
+
+/* Foco visible y consistente para navegación por teclado. */
+:focus-visible {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respeta la preferencia del sistema por movimiento reducido. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
   </style>
 </head>
 
 <body class="font-sans antialiased min-h-screen">
 
   <!-- ============================================================= -->
-  <!-- HEADER FIJO                                                   -->
+  <!-- ENCABEZADO FIJO                                               -->
   <!-- ============================================================= -->
-  <header class="sticky top-0 z-30 border-b border-slate-700 bg-slate-950/90 backdrop-blur">
-    <div class="max-w-[1800px] mx-auto px-5 py-3 flex items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <!-- Logo / glifo del gemelo digital -->
-        <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-sky-500/20 border border-slate-700 flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
-               stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <header class="sticky top-0 z-30 border-b border-[var(--border)] bg-[#060b16]/85 backdrop-blur-xl">
+    <div class="max-w-[1700px] mx-auto px-6 py-3.5 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3.5">
+        <!-- Glifo del gemelo digital -->
+        <div class="h-10 w-10 rounded-xl flex items-center justify-center flex-none"
+             style="background: linear-gradient(145deg, rgba(52,211,153,.18), rgba(56,189,248,.14));
+                    border: 1px solid var(--border-strong);">
+          <svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none"
+               stroke="#34d399" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 12h4l2 6 4-12 2 6h6"/>
           </svg>
         </div>
         <div>
-          <h1 class="text-lg font-semibold tracking-tight text-slate-100 leading-none">
-            BioTwin-DM
-          </h1>
-          <p class="text-[11px] text-slate-400 mt-1 leading-none">
-            Simulación Predictiva basada en Gemelos Digitales · Terapia de Insulina · Diabetes Tipo 1
+          <div class="flex items-center gap-2.5">
+            <h1 class="text-[17px] font-semibold tracking-tight text-[var(--ink)] leading-none">BioTwin-DM</h1>
+            <span class="badge badge-info">v1.0.0</span>
+          </div>
+          <p class="hidden sm:block text-[11.5px] text-[var(--ink-3)] mt-1.5 leading-none">
+            Gemelo digital del metabolismo glucémico · Terapia de insulina · Diabetes tipo 1
           </p>
         </div>
-        <span class="ml-2 text-[10px] font-mono px-2 py-1 rounded-md bg-slate-800 border border-slate-700 text-sky-400">
-          v1.0.0-demo
-        </span>
       </div>
 
-      <div class="flex items-center gap-2 text-xs">
+      <div class="flex items-center gap-2.5">
         <span class="status-dot"></span>
-        <span class="text-emerald-400 font-medium">Sistema Operativo</span>
-        <span class="hidden md:inline text-slate-500 font-mono ml-3">INSW410</span>
+        <span class="hidden sm:inline text-[12.5px] font-medium text-[var(--ok)]">Sistema operativo</span>
+        <span class="hidden md:inline text-[11px] font-mono text-[var(--ink-3)] ml-2 pl-3 border-l border-[var(--border)]">
+          INSW410
+        </span>
       </div>
     </div>
   </header>
@@ -200,210 +596,200 @@ body { color: #e2e8f0; }
   <!-- ============================================================= -->
   <!-- LAYOUT PRINCIPAL                                              -->
   <!-- ============================================================= -->
-  <main class="max-w-[1800px] mx-auto px-5 py-4">
-    <div class="grid grid-cols-1 lg:grid-cols-[minmax(320px,27%)_1fr] gap-4">
+  <main class="max-w-[1700px] mx-auto px-6 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-[minmax(330px,25%)_1fr] gap-5">
 
       <!-- ===================== PANEL DE CONTROL (IZQUIERDA) ===================== -->
-      <aside class="space-y-4">
+      <aside class="space-y-5">
 
-        <!-- Selector de Paciente Virtual -->
-        <section class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
-          <div class="flex items-center gap-2 mb-2">
+        <!-- Selector de paciente virtual -->
+        <section class="card p-5">
+          <div class="card-head">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"/><path d="M12 14a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7Z"/></svg>
-            <h2 class="text-sm font-semibold text-slate-200">Paciente Virtual</h2>
+            <h2 class="card-title">Paciente virtual</h2>
           </div>
-          <div id="selectorPacientes"></div>
-          <button id="btnNuevoPaciente"
-            class="mt-3 w-full border border-dashed border-slate-600 hover:border-sky-500/60 hover:text-sky-400 text-slate-400 text-xs font-medium py-2.5 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">
+          <div id="selectorPacientes" class="space-y-2"></div>
+          <button id="btnNuevoPaciente" class="btn btn-dashed mt-3">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
             Nuevo paciente
           </button>
         </section>
 
         <!-- Ficha clínica del perfil cargado -->
-        <section class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
-          <div class="flex items-center gap-2 mb-2">
+        <section class="card p-5">
+          <div class="card-head">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
-            <h2 class="text-sm font-semibold text-slate-200">Ficha del Gemelo Digital</h2>
+            <h2 class="card-title">Ficha del gemelo digital</h2>
           </div>
-          <p id="perfilClinico" class="text-xs text-slate-400 leading-relaxed mb-3 line-clamp-3">—</p>
-          <div id="perfilParametros" class="grid grid-cols-3 gap-1.5 text-[11px] font-mono"></div>
+          <p id="perfilClinico" class="text-[12.5px] text-[var(--ink-2)] leading-relaxed mb-4">—</p>
+          <div id="perfilParametros" class="grid grid-cols-2 gap-2"></div>
         </section>
 
         <!-- Controles de simulación -->
-        <section class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
-          <div class="flex items-center gap-2 mb-2">
+        <section class="card p-5">
+          <div class="card-head">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-            <h2 class="text-sm font-semibold text-slate-200">Evento Terapéutico</h2>
+            <h2 class="card-title">Evento terapéutico</h2>
           </div>
 
-          <div class="space-y-3">
+          <div class="space-y-5">
             <div>
-              <label class="flex items-center justify-between text-xs text-slate-300 mb-1">
-                <span>Carbohidratos ingeridos</span>
-                <span class="font-mono text-amber-400"><span id="valCHO">60</span> g</span>
+              <label for="inputCHO" class="flex items-baseline justify-between mb-2">
+                <span class="text-[12.5px] text-[var(--ink-2)]">Carbohidratos ingeridos</span>
+                <span class="font-mono text-[14px] font-semibold text-[var(--warn)] tnum">
+                  <span id="valCHO">60</span><span class="text-[11px] text-[var(--ink-3)] ml-0.5">g</span>
+                </span>
               </label>
-              <input id="inputCHO" type="range" min="0" max="120" step="5" value="60"
-                     class="w-full accent-amber-400 cursor-pointer">
+              <input id="inputCHO" class="range-cho" type="range" min="0" max="120" step="5" value="60" />
             </div>
 
             <div>
-              <label class="flex items-center justify-between text-xs text-slate-300 mb-1">
-                <span>Bolo de insulina</span>
-                <span class="font-mono text-sky-400"><span id="valInsulina">4.0</span> U</span>
+              <label for="inputInsulina" class="flex items-baseline justify-between mb-2">
+                <span class="text-[12.5px] text-[var(--ink-2)]">Bolo de insulina</span>
+                <span class="font-mono text-[14px] font-semibold text-[var(--info)] tnum">
+                  <span id="valInsulina">4.0</span><span class="text-[11px] text-[var(--ink-3)] ml-0.5">U</span>
+                </span>
               </label>
-              <input id="inputInsulina" type="range" min="0" max="25" step="0.5" value="4"
-                     class="w-full accent-sky-400 cursor-pointer">
+              <input id="inputInsulina" class="range-ins" type="range" min="0" max="25" step="0.5" value="4" />
             </div>
 
-            <button id="btnSimular"
-              class="w-full mt-1 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-sm font-medium py-2.5 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>
-              Ejecutar Simulación Predictiva
+            <button id="btnSimular" class="btn btn-primary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+              Ejecutar simulación predictiva
             </button>
           </div>
         </section>
 
-        <!-- Consola de Seguridad Biomédica -->
-        <section class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
-          <div class="flex items-center gap-2 mb-2">
+        <!-- Control terapéutico y validación -->
+        <section class="card p-5">
+          <div class="card-head">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
-            <h2 class="text-sm font-semibold text-slate-200">Control Terapéutico</h2>
+            <h2 class="card-title">Control terapéutico</h2>
           </div>
 
-          <div class="flex items-center justify-between p-3 rounded-lg bg-slate-900/70 border border-slate-700">
+          <div class="panel-sunk flex items-center justify-between gap-3">
             <div>
-              <p class="text-xs text-slate-300 font-medium">Control con IA</p>
-              <p class="text-[10px] text-slate-500">Optimiza insulina automáticamente</p>
+              <p class="text-[12.5px] text-[var(--ink)] font-medium">Control con IA</p>
+              <p class="text-[11px] text-[var(--ink-3)] mt-0.5">Optimiza la insulina automáticamente</p>
             </div>
-            <div class="flex items-center gap-3">
-              <span id="badgeRL" class="text-[10px] font-mono px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">IA Activa</span>
-              <div id="toggleRL" class="switch on" role="switch" aria-checked="true" tabindex="0">
+            <div class="flex items-center gap-3 flex-none">
+              <span id="badgeRL" class="badge badge-ok">IA activa</span>
+              <div id="toggleRL" class="switch on" role="switch" aria-checked="true" tabindex="0"
+                   aria-label="Activar control con IA">
                 <span class="knob"></span>
               </div>
             </div>
           </div>
 
-          <!-- Pipeline OhioT1DM -->
-          <button id="btnOhio"
-            class="w-full mt-3 bg-slate-700 hover:bg-slate-600 text-slate-100 text-sm font-medium py-2.5 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <button id="btnOhio" class="btn btn-secondary mt-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Validar predicción glucémica
           </button>
-          <div id="pipelineStatus" class="hidden mt-2 items-center gap-2 text-[11px] text-sky-400 font-mono">
+          <div id="pipelineStatus" class="hidden mt-3 items-center gap-2 text-[11.5px] text-[var(--info)] font-mono">
             <span class="spinner"></span>
-            <span>Ejecutando pipeline de limpieza...</span>
+            <span>Ejecutando pipeline de limpieza…</span>
           </div>
         </section>
       </aside>
 
       <!-- ===================== ÁREA DE VISUALIZACIÓN (DERECHA) ===================== -->
-      <section class="space-y-4">
+      <section class="space-y-5">
 
         <!-- Gráfico principal -->
-        <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
-          <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
-            <div class="flex items-center gap-2">
-              <h2 class="text-sm font-semibold text-slate-200">Trayectoria Glucémica</h2>
-              <span id="badgeModo" class="text-[10px] font-mono px-2 py-1 rounded-md bg-sky-500/15 text-sky-400 border border-sky-500/30">Estado basal</span>
-              <div class="flex items-center gap-1" role="group" aria-label="Resolución del eje temporal">
-                <button id="btnEjeDetalle" type="button"
-                  class="px-2 py-1 text-[10px] font-mono rounded-md border transition-all border-sky-500/30 bg-sky-500/15 text-sky-400">5 min</button>
-                <button id="btnEjeHora" type="button"
-                  class="px-2 py-1 text-[10px] font-mono rounded-md border transition-all border-slate-700 text-slate-400 hover:text-slate-200">1 hora</button>
-              </div>
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <div class="flex items-center gap-3 flex-wrap">
+              <h2 class="card-title">Trayectoria glucémica</h2>
+              <span id="badgeModo" class="badge badge-info">Estado basal</span>
             </div>
-            <div class="flex items-center gap-3 text-[10px] font-mono text-slate-400">
-              <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 bg-sky-400"></span>Histórico</span>
-              <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 bg-emerald-400"></span>Predicción</span>
-              <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 border-t border-dashed border-rose-500"></span>70</span>
-              <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 border-t border-dashed border-amber-400"></span>180</span>
+            <div class="seg" role="group" aria-label="Resolución del eje temporal">
+              <button id="btnEjeDetalle" type="button" class="seg-btn is-active">5 min</button>
+              <button id="btnEjeHora" type="button" class="seg-btn">1 hora</button>
             </div>
           </div>
-          <div style="position:relative; height:30vh; min-height:230px;">
+          <div style="position:relative; height:40vh; min-height:300px;">
             <canvas id="graficoPrincipal"></canvas>
           </div>
         </div>
 
-        <!-- Panel de indicadores clínicos (Módulo 7) -->
-        <div class="flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-          <h2 class="text-sm font-semibold text-slate-200">Clinical Performance Indicators</h2>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-
-          <!-- KPI 1: Time In Range -->
-          <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
-            <p class="text-[11px] text-slate-400 uppercase tracking-wide">Time In Range</p>
-            <p class="mt-1 flex items-baseline gap-1">
-              <span id="tirValor" class="text-2xl font-mono font-semibold text-emerald-400 tnum">—</span>
-              <span class="text-sm text-slate-500">%</span>
-            </p>
-            <div class="mt-2 h-2 rounded-full bg-slate-700 overflow-hidden">
-              <div id="tirBarra" class="kpi-bar-fill h-full bg-emerald-400" style="width:0%"></div>
-            </div>
-            <p id="tirBadge" class="mt-2 text-[11px] font-medium text-slate-500">Target range 70–180 mg/dL</p>
-          </div>
-
-          <!-- KPI 2: Time Below Range -->
-          <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
-            <p class="text-[11px] text-slate-400 uppercase tracking-wide">Time Below Range</p>
-            <p class="mt-1 flex items-baseline gap-1">
-              <span id="tbrValor" class="text-2xl font-mono font-semibold text-emerald-400 tnum">—</span>
-              <span class="text-sm text-slate-500">%</span>
-            </p>
-            <div class="mt-2 h-2 rounded-full bg-slate-700 overflow-hidden">
-              <div id="tbrBarra" class="kpi-bar-fill h-full bg-emerald-400" style="width:0%"></div>
-            </div>
-            <p class="mt-2 text-[11px] text-slate-500">Clinical limit: &lt; 4 %</p>
-          </div>
-
-          <!-- KPI 3: Predictive Error (RMSE) — valor fijo de referencia -->
-          <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
-            <p class="text-[11px] text-slate-400 uppercase tracking-wide">Predictive Error (RMSE)</p>
-            <p class="mt-1 flex items-baseline gap-1">
-              <span id="rmseValor" class="text-2xl font-mono font-semibold text-sky-400 tnum">18.5</span>
-              <span class="text-sm text-slate-500">mg/dL</span>
-            </p>
-            <span id="rmseBadge" class="mt-2 inline-block text-[11px] font-medium px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-              ✓ Design constraint satisfied (&lt; 25 mg/dL)
-            </span>
-            <p id="rmseSubtext" class="mt-2 text-[10px] text-slate-500 leading-snug">
-              Mean squared error between digital twin prediction and OhioT1DM reference values.
-            </p>
-          </div>
-
-          <!-- KPI 4: Clinical Decision Support -->
-          <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg p-3">
-            <p class="text-[11px] text-slate-400 uppercase tracking-wide">Clinical Decision Support</p>
-            <p id="decisionTexto" class="mt-2 text-xs text-slate-300 leading-relaxed">
-              Load a profile and run a simulation to obtain recommendations.
-            </p>
-          </div>
+        <!-- Indicadores clínicos -->
+        <div class="flex items-center gap-2.5 pt-1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          <h2 class="eyebrow">Indicadores clínicos de desempeño</h2>
         </div>
 
-        <!-- ===================== CONSOLA CRIPTOGRÁFICA ===================== -->
-        <div class="card bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg overflow-hidden">
-          <div class="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-700">
-            <div class="flex items-center gap-2">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+
+          <!-- KPI 1: Tiempo en rango -->
+          <div class="card p-5 flex flex-col">
+            <p class="kpi-label">Tiempo en rango (TIR)</p>
+            <p class="mt-3 flex items-baseline gap-1.5">
+              <span id="tirValor" class="kpi-value text-[var(--ok)]">—</span>
+              <span class="kpi-unit">%</span>
+            </p>
+            <div class="kpi-track mt-4">
+              <div id="tirBarra" class="kpi-bar-fill" style="width:0%; background-color:var(--ok)"></div>
+            </div>
+            <p id="tirBadge" class="kpi-note mt-3">Rango objetivo 70–180 mg/dL</p>
+          </div>
+
+          <!-- KPI 2: Tiempo bajo rango -->
+          <div class="card p-5 flex flex-col">
+            <p class="kpi-label">Tiempo bajo rango (TBR)</p>
+            <p class="mt-3 flex items-baseline gap-1.5">
+              <span id="tbrValor" class="kpi-value text-[var(--ok)]">—</span>
+              <span class="kpi-unit">%</span>
+            </p>
+            <div class="kpi-track mt-4">
+              <div id="tbrBarra" class="kpi-bar-fill" style="width:0%; background-color:var(--ok)"></div>
+            </div>
+            <p class="kpi-note mt-3">Límite clínico: &lt; 4 % del tiempo</p>
+          </div>
+
+          <!-- KPI 3: Error de predicción (RMSE) -->
+          <div class="card p-5 flex flex-col">
+            <p class="kpi-label">Error de predicción (RMSE)</p>
+            <p class="mt-3 flex items-baseline gap-1.5">
+              <span id="rmseValor" class="kpi-value text-[var(--info)]">18.5</span>
+              <span class="kpi-unit">mg/dL</span>
+            </p>
+            <div class="mt-4">
+              <span id="rmseBadge" class="badge badge-muted">Valor de referencia (meta &lt; 25 mg/dL)</span>
+            </div>
+            <p id="rmseSubtext" class="kpi-note mt-3">
+              Referencia de diseño en modo offline. Inicia el backend para obtener el RMSE y el R² reales.
+            </p>
+          </div>
+
+          <!-- KPI 4: Soporte a la decisión clínica -->
+          <div class="card p-5 flex flex-col">
+            <p class="kpi-label">Soporte a la decisión clínica</p>
+            <p id="decisionTexto" class="mt-3 text-[13px] text-[var(--ink-2)] leading-relaxed">
+              Carga un perfil y ejecuta una simulación para obtener recomendaciones.
+            </p>
+          </div>
+        </div>
+
+        <!-- ===================== CONSOLA DE PRIVACIDAD ===================== -->
+        <div class="card overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-2.5 border-b border-[var(--border)]"
+               style="background: var(--surface-sunk);">
+            <div class="flex items-center gap-2.5">
               <span class="flex gap-1.5">
-                <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-                <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-[var(--risk)]"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-[var(--warn)]"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-[var(--ok)]"></span>
               </span>
-              <span class="text-xs font-mono text-slate-300">consola_privacidad.log</span>
+              <span class="text-[11.5px] font-mono text-[var(--ink-2)] ml-1">consola_privacidad.log</span>
             </div>
             <div class="flex items-center gap-3">
-              <span class="text-[11px] font-mono text-slate-400">
-                Ops. cifradas: <span id="opsCounter" class="text-emerald-400">0</span>
+              <span class="text-[11px] font-mono text-[var(--ink-3)]">
+                Ops. cifradas: <span id="opsCounter" class="text-[var(--ok)] font-semibold tnum">0</span>
               </span>
-              <button id="btnLimpiarLogs"
-                class="text-[11px] font-mono text-slate-400 hover:text-rose-400 transition-colors border border-slate-700 rounded px-2 py-1">
-                Limpiar logs
-              </button>
+              <button id="btnLimpiarLogs" class="btn-mini">Limpiar logs</button>
             </div>
           </div>
-          <div id="terminal" class="terminal p-3 h-28 overflow-y-auto"></div>
+          <div id="terminal" class="terminal p-4 h-40 overflow-y-auto"></div>
         </div>
       </section>
     </div>
@@ -413,28 +799,37 @@ body { color: #e2e8f0; }
   <!-- MODAL DE ALERTA CRÍTICA (Fallback PID)                        -->
   <!-- ============================================================= -->
   <div id="modalFallback" role="dialog" aria-modal="true" aria-labelledby="modalTitulo"
-       class="modal-overlay hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 opacity-0">
-    <div class="modal-card bg-rose-950/95 border-2 border-rose-500 rounded-xl shadow-2xl max-w-lg w-full p-6 scale-95 opacity-0">
-      <div class="flex items-start gap-3">
+       class="modal-overlay hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 opacity-0">
+    <div class="modal-card max-w-lg w-full p-6 scale-95 opacity-0 rounded-2xl"
+         style="background: linear-gradient(180deg, #2a1119, #1c0d13);
+                border: 1px solid rgba(244,63,94,.5); box-shadow: var(--shadow-3);">
+      <div class="flex items-start gap-4">
         <div class="flex-none mt-0.5">
-          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fb7185" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fb7185" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         </div>
         <div class="flex-1">
-          <h3 id="modalTitulo" class="text-base font-semibold text-rose-200">
-            ⚠️ ALERTA DE SEGURIDAD — DOSIS FUERA DE RANGO TERAPÉUTICO
+          <h3 id="modalTitulo" class="text-[15px] font-semibold text-rose-200 leading-snug">
+            Alerta de seguridad — dosis fuera de rango terapéutico
           </h3>
-          <div class="mt-3 font-mono text-xs bg-rose-900/50 border border-rose-500/40 rounded-lg p-3 text-rose-100">
-            <p>Dosis ingresada: <span id="modalDosis" class="font-semibold text-white">—</span> U
-               &nbsp;|&nbsp; Umbral de seguridad del perfil: <span id="modalUmbral" class="font-semibold text-white">—</span> U</p>
+          <div class="mt-4 font-mono text-[12px] rounded-xl p-3.5 text-rose-100"
+               style="background: rgba(244,63,94,.1); border: 1px solid rgba(244,63,94,.3);">
+            <p class="flex items-center justify-between gap-3">
+              <span>Dosis ingresada</span>
+              <span class="font-semibold text-white tnum"><span id="modalDosis">—</span> U</span>
+            </p>
+            <p class="flex items-center justify-between gap-3 mt-1.5 pt-1.5 border-t border-rose-500/20">
+              <span>Umbral del perfil</span>
+              <span class="font-semibold text-white tnum"><span id="modalUmbral">—</span> U</span>
+            </p>
           </div>
-          <p class="mt-3 text-xs text-rose-100/90 leading-relaxed">
-            El <span class="font-semibold">Agente RL</span> ha sido anulado preventivamente. El sistema ha conmutado
-            automáticamente al <span class="font-semibold">Controlador Heurístico PID Clínico</span> para proteger la
+          <p class="mt-4 text-[12.5px] text-rose-100/85 leading-relaxed">
+            El <span class="font-semibold text-rose-100">agente RL</span> fue anulado preventivamente. El sistema
+            conmutó al <span class="font-semibold text-rose-100">controlador PID clínico</span> para proteger la
             integridad del gemelo digital. La simulación procederá con la dosis recortada al umbral seguro.
           </p>
-          <button id="btnCerrarModal"
-            class="mt-4 w-full bg-rose-600 hover:bg-rose-500 text-white text-sm font-medium py-2.5 rounded-lg transition-all duration-300">
-            Entendido — Continuar con Controlador PID
+          <button id="btnCerrarModal" class="btn mt-5"
+                  style="background: #e11d48; color: #fff; font-weight: 600;">
+            Entendido — continuar con el controlador PID
           </button>
         </div>
       </div>
@@ -445,24 +840,26 @@ body { color: #e2e8f0; }
   <!-- MODAL: NUEVO PACIENTE VIRTUAL                                 -->
   <!-- ============================================================= -->
   <div id="modalPaciente" role="dialog" aria-modal="true" aria-labelledby="modalPacienteTitulo"
-       class="modal-overlay hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 opacity-0">
-    <div class="modal-card bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-w-2xl w-full p-6 scale-95 opacity-0 max-h-[90vh] overflow-y-auto">
+       class="modal-overlay hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 opacity-0">
+    <div class="modal-card card max-w-2xl w-full p-6 scale-95 opacity-0 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between mb-1">
-        <h3 id="modalPacienteTitulo" class="text-base font-semibold text-slate-100">Nuevo Paciente Virtual</h3>
-        <button type="button" data-cerrar class="text-slate-400 hover:text-slate-200 transition-colors" aria-label="Cerrar">
+        <h3 id="modalPacienteTitulo" class="text-[15px] font-semibold text-[var(--ink)]">Nuevo paciente virtual</h3>
+        <button type="button" data-cerrar class="text-[var(--ink-3)] hover:text-[var(--ink)] transition-colors" aria-label="Cerrar">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
       </div>
-      <p class="text-[11px] text-slate-500 mb-4">Define los parámetros fisiológicos del gemelo digital. El paciente se guarda en este navegador.</p>
+      <p class="text-[12px] text-[var(--ink-3)] mb-5">
+        Define los parámetros fisiológicos del gemelo digital. El paciente se guarda en este navegador.
+      </p>
 
-      <form id="formPaciente" class="space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <form id="formPaciente" class="space-y-5">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="sm:col-span-2">
-            <label class="text-[11px] text-slate-400 mb-1 block">Alias *</label>
+            <label class="text-[11.5px] text-[var(--ink-2)] mb-1.5 block">Alias *</label>
             <input name="alias" type="text" required placeholder="Paciente #06 — Adulto / Sensibilidad media" />
           </div>
           <div>
-            <label class="text-[11px] text-slate-400 mb-1 block">Tipo</label>
+            <label class="text-[11.5px] text-[var(--ink-2)] mb-1.5 block">Tipo</label>
             <select name="tipo">
               <option value="adulto">Adulto</option>
               <option value="pediatrico">Pediátrico</option>
@@ -470,48 +867,46 @@ body { color: #e2e8f0; }
             </select>
           </div>
           <div>
-            <label class="text-[11px] text-slate-400 mb-1 block">Glucosa basal (mg/dL)</label>
+            <label class="text-[11.5px] text-[var(--ink-2)] mb-1.5 block">Glucosa basal (mg/dL)</label>
             <input name="glucosaBasal" type="number" step="1" value="120" />
           </div>
           <div>
-            <label class="text-[11px] text-slate-400 mb-1 block">CR — ratio I:CHO (g/U)</label>
+            <label class="text-[11.5px] text-[var(--ink-2)] mb-1.5 block">CR — ratio I:CHO (g/U)</label>
             <input name="cr" type="number" step="0.5" value="10" />
           </div>
           <div>
-            <label class="text-[11px] text-slate-400 mb-1 block">ISF — sensibilidad (mg/dL por U)</label>
+            <label class="text-[11.5px] text-[var(--ink-2)] mb-1.5 block">ISF — sensibilidad (mg/dL por U)</label>
             <input name="isf" type="number" step="1" value="45" />
           </div>
           <div>
-            <label class="text-[11px] text-slate-400 mb-1 block">TDD — dosis diaria (U/día)</label>
+            <label class="text-[11.5px] text-[var(--ink-2)] mb-1.5 block">TDD — dosis diaria (U/día)</label>
             <input name="tdd" type="number" step="1" value="45" />
           </div>
           <div>
-            <label class="text-[11px] text-slate-400 mb-1 block">Pico absorción CHO (min)</label>
+            <label class="text-[11.5px] text-[var(--ink-2)] mb-1.5 block">Pico absorción CHO (min)</label>
             <input name="pico" type="number" step="1" value="45" />
           </div>
           <div>
-            <label class="text-[11px] text-slate-400 mb-1 block">Variabilidad (0.01–0.5)</label>
+            <label class="text-[11.5px] text-[var(--ink-2)] mb-1.5 block">Variabilidad (0.01–0.5)</label>
             <input name="variabilidad" type="number" step="0.01" value="0.10" />
           </div>
           <div>
-            <label class="text-[11px] text-slate-400 mb-1 block">Umbral de seguridad (U)</label>
+            <label class="text-[11.5px] text-[var(--ink-2)] mb-1.5 block">Umbral de seguridad (U)</label>
             <input name="umbral" type="number" step="0.5" value="10" />
           </div>
         </div>
         <div>
-          <label class="text-[11px] text-slate-400 mb-1 block">Perfil clínico (opcional)</label>
-          <textarea name="perfil" rows="2" placeholder="Edad, peso y características clínicas relevantes..."></textarea>
+          <label class="text-[11.5px] text-[var(--ink-2)] mb-1.5 block">Perfil clínico (opcional)</label>
+          <textarea name="perfil" rows="2" placeholder="Edad, peso y características clínicas relevantes…"></textarea>
         </div>
 
-        <p id="formPacienteError" class="text-xs text-rose-400 min-h-[1rem]"></p>
+        <p id="formPacienteError" class="text-[12px] text-[var(--risk)] min-h-[1rem]"></p>
 
-        <div class="flex justify-end gap-2">
-          <button type="button" data-cerrar
-            class="px-4 py-2 rounded-lg text-sm text-slate-300 border border-slate-700 hover:bg-slate-800 transition-all duration-300">
+        <div class="flex justify-end gap-3">
+          <button type="button" data-cerrar class="btn btn-secondary" style="width:auto; padding-left:20px; padding-right:20px;">
             Cancelar
           </button>
-          <button type="submit" id="btnGuardarPaciente"
-            class="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-all duration-300">
+          <button type="submit" id="btnGuardarPaciente" class="btn btn-primary" style="width:auto; padding-left:20px; padding-right:20px;">
             Guardar paciente
           </button>
         </div>
@@ -522,7 +917,7 @@ body { color: #e2e8f0; }
   <!-- ============================================================= -->
   <!-- PUNTO DE ENTRADA (módulo ES; resuelve el resto por imports)   -->
   <!-- ============================================================= -->
-  <!-- Build autogenerado por build.mjs a partir de los módulos ES. NO editar a mano. -->
+  <!-- Build autogenerado por build.py a partir de los módulos ES. NO editar a mano. -->
   <script>
   (function () {
   'use strict';
@@ -1103,12 +1498,16 @@ function cacheDOM() {
  * ui/kpis.js — Módulo 7: indicadores clínicos dinámicos (Clinical Performance
  * Indicators).
  *
- * Las cuatro tarjetas se recalculan automáticamente ante cualquier cambio en
- * los datos del gráfico (nueva simulación, carga OhioT1DM, fallback, cambio de
- * perfil). El punto único de actualización es `updateAllMetrics()`, que lee la
- * curva activa desde `estado.curvaActual`.
+ * Las tarjetas se recalculan ante cualquier cambio en los datos del gráfico
+ * (nueva simulación, carga OhioT1DM, fallback, cambio de perfil).
  *
- * Lenguaje clínico neutral (sin referencias institucionales).
+ * Hay dos orígenes de métricas y ambos pintan las MISMAS tarjetas:
+ *   - `updateAllMetrics()`    calcula TIR/TBR desde la curva local visible.
+ *   - `setMetricasBackend()`  usa las métricas ya calculadas por el motor real.
+ * Por eso el pintado vive en `pintarTIR` / `pintarTBR` y no se duplica.
+ *
+ * Lenguaje clínico neutral y en español, igual que el backend, para que el
+ * mensaje no cambie según el modo (offline / motor real).
  */
 
 // Valores previos: permiten animar los contadores desde el último estado.
@@ -1119,19 +1518,27 @@ let tbrPrevio = 0;
  * CÁLCULOS (funciones puras)
  * ========================================================================= */
 
+/** Descarta huecos (null) y valores no numéricos de una serie glucémica. */
+function _validos(datapoints) {
+  return datapoints.filter((v) => v !== null && v !== undefined && !Number.isNaN(v));
+}
+
+/** % de puntos válidos que cumplen `predicado` (0 si no hay datos). */
+function _porcentaje(datapoints, predicado) {
+  const datos = _validos(datapoints);
+  if (!datos.length) return 0;
+  return (datos.filter(predicado).length / datos.length) * 100;
+}
+
 /** Time In Range: % de puntos con 70 ≤ glucosa ≤ 180 mg/dL. */
 function calculateTIR(datapoints) {
-  const datos = datapoints.filter((v) => v !== null && !Number.isNaN(v));
-  if (!datos.length) return 0;
   const { hipo, hiper } = CONFIG.rangos;
-  return (datos.filter((g) => g >= hipo && g <= hiper).length / datos.length) * 100;
+  return _porcentaje(datapoints, (g) => g >= hipo && g <= hiper);
 }
 
 /** Time Below Range: % de puntos con glucosa < 70 mg/dL. */
 function calculateTBR(datapoints) {
-  const datos = datapoints.filter((v) => v !== null && !Number.isNaN(v));
-  if (!datos.length) return 0;
-  return (datos.filter((g) => g < CONFIG.rangos.hipo).length / datos.length) * 100;
+  return _porcentaje(datapoints, (g) => g < CONFIG.rangos.hipo);
 }
 
 /* =========================================================================
@@ -1154,41 +1561,79 @@ function animarContador(el, desde, hasta, ms = 400) {
   setTimeout(() => { el.textContent = hasta.toFixed(1); }, ms + 80);
 }
 
-/** Render estático de la tarjeta RMSE (valor fijo de referencia). Una vez en init. */
-function renderRMSECard() {
-  DOM.rmseValor.textContent = '18.5';
-  DOM.rmseBadge.textContent = '✓ Design constraint satisfied (< 25 mg/dL)';
-  DOM.rmseSubtext.textContent =
-    'Mean squared error between digital twin prediction and OhioT1DM reference values.';
+/** Tarjeta 1 — Time In Range: contador, barra y veredicto frente a la meta. */
+function pintarTIR(tir) {
+  const { tirVerde, tirAmbar } = CONFIG.metas;
+  const color = tir > tirVerde ? COLORES.euglucemia
+    : (tir >= tirAmbar ? COLORES.hiper : COLORES.hipo);
+
+  animarContador(DOM.tirValor, tirPrevio, tir);
+  DOM.tirValor.style.color = color;
+  DOM.tirBarra.style.width = tir.toFixed(1) + '%';
+  DOM.tirBarra.style.backgroundColor = color;
+
+  const cumple = tir > tirVerde;
+  DOM.tirBadge.textContent = cumple ? '✓ Meta clínica alcanzada' : '✗ Meta clínica no alcanzada';
+  DOM.tirBadge.className = 'kpi-note mt-3 font-medium';
+  DOM.tirBadge.style.color = cumple ? COLORES.euglucemia : COLORES.hipo;
+  tirPrevio = tir;
 }
 
-/** Soporte a la decisión clínica según el último valor glucémico de la curva. */
-function renderDecisionSupport(lastGlucose) {
+/** Tarjeta 2 — Time Below Range (escala visual amplificada ×4). */
+function pintarTBR(tbr) {
+  const color = tbr < CONFIG.metas.tbrMax ? COLORES.euglucemia : COLORES.hipo;
+  animarContador(DOM.tbrValor, tbrPrevio, tbr);
+  DOM.tbrValor.style.color = color;
+  DOM.tbrBarra.style.width = Math.min(tbr * 4, 100).toFixed(1) + '%';
+  DOM.tbrBarra.style.backgroundColor = color;
+  tbrPrevio = tbr;
+}
+
+/**
+ * Render de la tarjeta RMSE en modo offline. El valor es una referencia de
+ * diseño, NO una medición: la validación real (RMSE y R² calculados con
+ * scikit-learn) la entrega el backend vía `setRMSEBackend`.
+ */
+function renderRMSECard() {
+  DOM.rmseValor.textContent = '18.5';
+  DOM.rmseBadge.textContent = 'Valor de referencia (meta < 25 mg/dL)';
+  DOM.rmseSubtext.textContent =
+    'Referencia de diseño en modo offline. Inicie el backend para obtener el RMSE y el R² reales.';
+}
+
+/**
+ * Soporte a la decisión clínica según el último valor glucémico de la curva.
+ * Los textos replican los del backend (`engine/simulador.py::_decision_clinica`)
+ * para que el mensaje sea idéntico en ambos modos.
+ */
+function renderDecisionSupport(ultimaGlucosa) {
   const el = DOM.decisionTexto;
   const { hipoSevera, hipo, hiper, hiperSevera } = CONFIG.rangos;
-  if (lastGlucose === null || lastGlucose === undefined || Number.isNaN(lastGlucose)) {
-    el.textContent = 'No predictive data available.';
+
+  if (ultimaGlucosa === null || ultimaGlucosa === undefined || Number.isNaN(ultimaGlucosa)) {
+    el.textContent = 'Sin datos predictivos disponibles.';
     el.style.color = '#94a3b8';
     return;
   }
-  let txt, color;
-  if (lastGlucose > hiperSevera) {
-    txt = `🔴 Severe hyperglycemia projected (>${Math.round(lastGlucose)} mg/dL). Urgent bolus correction advised.`;
-    color = '#fb7185';
-  } else if (lastGlucose > hiper) {
-    txt = '🟡 Mild-moderate hyperglycemia. Adjust I:CHO ratio for next meal.';
-    color = '#fbbf24';
-  } else if (lastGlucose >= hipo) {
-    txt = '🟢 Glucose within target range. Maintain current regimen. Review in 2 h.';
-    color = '#34d399';
-  } else if (lastGlucose >= hipoSevera) {
-    txt = '🟠 Mild hypoglycemia. Ingest 15 g fast-acting glucose. Reassess in 15 min.';
+
+  let texto, color;
+  if (ultimaGlucosa > hiperSevera) {
+    texto = `🔴 Hiperglicemia severa proyectada (>${Math.round(ultimaGlucosa)} mg/dL). Corrección con bolo urgente.`;
+    color = COLORES.hipo;
+  } else if (ultimaGlucosa > hiper) {
+    texto = '🟡 Hiperglicemia leve-moderada. Ajustar ratio I:CHO en la próxima comida.';
+    color = COLORES.hiper;
+  } else if (ultimaGlucosa >= hipo) {
+    texto = '🟢 Glucosa en rango objetivo. Mantener régimen actual. Revisar en 2 h.';
+    color = COLORES.euglucemia;
+  } else if (ultimaGlucosa >= hipoSevera) {
+    texto = '🟠 Hipoglicemia leve. Ingerir 15 g de glucosa rápida. Reevaluar en 15 min.';
     color = '#fb923c';
   } else {
-    txt = '🔴 SEVERE HYPOGLYCEMIA. Immediate action required.';
-    color = '#fb7185';
+    texto = '🔴 HIPOGLICEMIA SEVERA. Acción inmediata requerida.';
+    color = COLORES.hipo;
   }
-  el.textContent = txt;
+  el.textContent = texto;
   el.style.color = color;
 }
 
@@ -1197,41 +1642,14 @@ function renderDecisionSupport(lastGlucose) {
  * ========================================================================= */
 
 /**
- * Punto único de actualización. Lee la curva activa (`estado.curvaActual`),
- * recalcula TIR/TBR con contadores animados y refresca el soporte clínico.
+ * Punto único de actualización en modo offline. Lee la curva activa
+ * (`estado.curvaActual`), recalcula TIR/TBR y refresca el soporte clínico.
  * Debe llamarse al final de cada simulación, carga de dataset y fallback.
  */
 function updateAllMetrics() {
   const { valores, ultimo } = estado.curvaActual;
-  const { tirVerde, tirAmbar, tbrMax } = CONFIG.metas;
-
-  // --- Tarjeta 1: Time In Range ---
-  const tir = calculateTIR(valores);
-  const tirColor = tir > tirVerde ? COLORES.euglucemia
-    : (tir >= tirAmbar ? COLORES.hiper : COLORES.hipo);
-  animarContador(DOM.tirValor, tirPrevio, tir);
-  DOM.tirValor.style.color = tirColor;
-  DOM.tirBarra.style.width = tir.toFixed(1) + '%';
-  DOM.tirBarra.style.backgroundColor = tirColor;
-  if (tir > tirVerde) {
-    DOM.tirBadge.textContent = '✓ Clinical Target Met';
-    DOM.tirBadge.className = 'mt-2 text-[11px] font-medium text-emerald-400';
-  } else {
-    DOM.tirBadge.textContent = '✗ Clinical Target Not Met';
-    DOM.tirBadge.className = 'mt-2 text-[11px] font-medium text-rose-400';
-  }
-  tirPrevio = tir;
-
-  // --- Tarjeta 2: Time Below Range ---
-  const tbr = calculateTBR(valores);
-  const tbrColor = tbr < tbrMax ? COLORES.euglucemia : COLORES.hipo;
-  animarContador(DOM.tbrValor, tbrPrevio, tbr);
-  DOM.tbrValor.style.color = tbrColor;
-  DOM.tbrBarra.style.width = Math.min(tbr * 4, 100).toFixed(1) + '%'; // escala visual amplificada
-  DOM.tbrBarra.style.backgroundColor = tbrColor;
-  tbrPrevio = tbr;
-
-  // --- Tarjeta 4: Soporte a la decisión clínica ---
+  pintarTIR(calculateTIR(valores));
+  pintarTBR(calculateTBR(valores));
   renderDecisionSupport(ultimo);
 }
 
@@ -1240,59 +1658,30 @@ function updateAllMetrics() {
  * del motor UVA/Padova). Anima los contadores hacia los valores recibidos.
  */
 function setMetricasBackend({ tir, tbr, decision }) {
-  const { tirVerde, tirAmbar, tbrMax } = CONFIG.metas;
-
-  const tirColor = tir > tirVerde ? COLORES.euglucemia
-    : (tir >= tirAmbar ? COLORES.hiper : COLORES.hipo);
-  animarContador(DOM.tirValor, tirPrevio, tir);
-  DOM.tirValor.style.color = tirColor;
-  DOM.tirBarra.style.width = tir.toFixed(1) + '%';
-  DOM.tirBarra.style.backgroundColor = tirColor;
-  if (tir > tirVerde) {
-    DOM.tirBadge.textContent = '✓ Clinical Target Met';
-    DOM.tirBadge.className = 'mt-2 text-[11px] font-medium text-emerald-400';
-  } else {
-    DOM.tirBadge.textContent = '✗ Clinical Target Not Met';
-    DOM.tirBadge.className = 'mt-2 text-[11px] font-medium text-rose-400';
-  }
-  tirPrevio = tir;
-
-  const tbrColor = tbr < tbrMax ? COLORES.euglucemia : COLORES.hipo;
-  animarContador(DOM.tbrValor, tbrPrevio, tbr);
-  DOM.tbrValor.style.color = tbrColor;
-  DOM.tbrBarra.style.width = Math.min(tbr * 4, 100).toFixed(1) + '%';
-  DOM.tbrBarra.style.backgroundColor = tbrColor;
-  tbrPrevio = tbr;
-
-  if (decision !== undefined) {
-    DOM.decisionTexto.textContent = decision;
-  }
+  pintarTIR(tir);
+  pintarTBR(tbr);
+  if (decision !== undefined) DOM.decisionTexto.textContent = decision;
 }
 
 /** Actualiza la tarjeta RMSE con la validación real del backend (OE3/OE4). */
 function setRMSEBackend({ rmse, r2, fuente, cumple }) {
   DOM.rmseValor.textContent = rmse.toFixed(1);
-  if (cumple) {
-    DOM.rmseBadge.textContent = `✓ Design constraint satisfied (< 25 mg/dL) · R²=${r2.toFixed(2)}`;
-    DOM.rmseBadge.className = 'mt-2 inline-block text-[11px] font-medium px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
-  } else {
-    DOM.rmseBadge.textContent = `RMSE ${rmse.toFixed(1)} mg/dL · R²=${r2.toFixed(2)}`;
-    DOM.rmseBadge.className = 'mt-2 inline-block text-[11px] font-medium px-2 py-1 rounded-md bg-amber-500/15 text-amber-400 border border-amber-500/30';
-  }
+  DOM.rmseBadge.textContent = cumple
+    ? `✓ Cumple la meta (< 25 mg/dL) · R²=${r2.toFixed(2)}`
+    : `RMSE ${rmse.toFixed(1)} mg/dL · R²=${r2.toFixed(2)}`;
+  DOM.rmseBadge.className = 'badge ' + (cumple ? 'badge-ok' : 'badge-warn');
   DOM.rmseSubtext.textContent = `Validación a 30 min sobre ${fuente}. RMSE/R² calculados con scikit-learn.`;
 }
 
 /* =========================================================================
  * BADGE DE MODO DEL GRÁFICO (auxiliar, independiente de las métricas)
  * ========================================================================= */
+// Traduce el tono semántico que piden los módulos de render al modificador
+// correspondiente del sistema de diseño (css/styles.css).
+const BADGE_POR_TONO = { sky: 'badge-info', emerald: 'badge-ok', rose: 'badge-risk', amber: 'badge-warn' };
+
 function setBadgeModo(texto, tono) {
-  const tonos = {
-    sky: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
-    emerald: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-    rose: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
-    amber: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  };
-  DOM.badgeModo.className = 'text-[10px] font-mono px-2 py-1 rounded-md border ' + (tonos[tono] || tonos.sky);
+  DOM.badgeModo.className = 'badge ' + (BADGE_POR_TONO[tono] || BADGE_POR_TONO.sky);
   DOM.badgeModo.textContent = texto;
 }
 
@@ -1386,6 +1775,11 @@ function registrarFlujoSeguridad(evento, payload, opciones = {}) {
  * la aplicación interactúa mediante las funciones de render exportadas, nunca
  * accediendo directamente al objeto Chart.
  *
+ * Todas las funciones de render terminan en `pintar()`, que concentra los pasos
+ * comunes (fijar la serie, actualizar la curva activa para las métricas y el
+ * badge de modo). Las líneas de referencia 70/180 se configuran una sola vez en
+ * `initChart` y persisten entre renders.
+ *
  * `Chart` es el global expuesto por el script CDN de Chart.js.
  */
 
@@ -1403,21 +1797,42 @@ function mostrarMarca(lbl) {
 function lineasReferencia() {
   const estiloEtiqueta = (txt, color) => ({
     display: true, content: txt, position: 'start', color,
-    backgroundColor: 'rgba(2,6,23,0.7)', font: { size: 9, family: 'monospace' },
+    backgroundColor: 'rgba(6,11,22,0.88)', font: { size: 9.5, family: 'monospace' },
+    padding: { x: 5, y: 3 }, borderRadius: 4,
+  });
+  const linea = (valor, color) => ({
+    type: 'line', yMin: valor, yMax: valor,
+    borderColor: color, borderWidth: 1.5, borderDash: [6, 6],
+    label: estiloEtiqueta(valor + ' mg/dL', color),
   });
   return {
-    hipo: {
-      type: 'line', yMin: CONFIG.rangos.hipo, yMax: CONFIG.rangos.hipo,
-      borderColor: COLORES.hipo, borderWidth: 1.5, borderDash: [6, 6],
-      label: estiloEtiqueta(CONFIG.rangos.hipo + ' mg/dL', COLORES.hipo),
-    },
-    hiper: {
-      type: 'line', yMin: CONFIG.rangos.hiper, yMax: CONFIG.rangos.hiper,
-      borderColor: COLORES.hiper, borderWidth: 1.5, borderDash: [6, 6],
-      label: estiloEtiqueta(CONFIG.rangos.hiper + ' mg/dL', COLORES.hiper),
-    },
+    hipo: linea(CONFIG.rangos.hipo, COLORES.hipo),
+    hiper: linea(CONFIG.rangos.hiper, COLORES.hiper),
   };
 }
+
+/* =========================================================================
+ * CONSTRUCTORES DE DATASET
+ * ========================================================================= */
+
+/** Dataset de línea con los estilos base del proyecto; `opciones` los sobreescribe. */
+function serie(label, data, opciones = {}) {
+  return {
+    label, data,
+    borderWidth: 2, pointRadius: 0, tension: 0.35, spanGaps: false, order: 1,
+    ...opciones,
+  };
+}
+
+/** Dataset de línea de un solo color (borde y relleno del mismo tono). */
+function lineaColor(label, data, color, opciones = {}) {
+  return serie(label, data, { borderColor: color, backgroundColor: color, ...opciones });
+}
+
+// Colorea cada tramo de la curva según su rango glucémico.
+const segmentoPorRango = {
+  borderColor: (c) => colorPorGlucosa((c.p0.parsed.y + c.p1.parsed.y) / 2),
+};
 
 /** Inicializa el gráfico Chart.js con la configuración profesional base. */
 function initChart() {
@@ -1433,14 +1848,15 @@ function initChart() {
       layout: { padding: { top: 8, right: 8 } },
       scales: {
         x: {
+          border: { color: '#1e2d45' },
           grid: {
             color: (ctx) => {
               const lbl = (typeof ctx.index === 'number') ? chart.data.labels[ctx.index] : null;
-              return mostrarMarca(lbl) ? 'rgba(30,41,59,0.7)' : 'transparent';
+              return mostrarMarca(lbl) ? 'rgba(30,45,69,0.55)' : 'transparent';
             },
           },
           ticks: {
-            color: '#64748b', autoSkip: false, maxRotation: 0,
+            color: '#6b7d99', autoSkip: false, maxRotation: 0, padding: 6,
             font: { family: 'monospace', size: 10 },
             callback(value) {
               const lbl = this.getLabelForValue(value);
@@ -1451,27 +1867,33 @@ function initChart() {
         y: {
           suggestedMin: 40,
           suggestedMax: 300,
-          grid: { color: 'rgba(30,41,59,0.7)' },
+          border: { display: false },
+          grid: { color: 'rgba(30,45,69,0.55)' },
           ticks: {
-            color: '#64748b', font: { family: 'monospace', size: 10 },
+            color: '#6b7d99', font: { family: 'monospace', size: 10 }, padding: 8,
             callback: (v) => v + ' mg/dL',
           },
         },
       },
       plugins: {
         legend: {
+          align: 'end',
           labels: {
-            color: '#cbd5e1', font: { size: 11 }, usePointStyle: true, boxWidth: 8,
+            color: '#9fb0c9', font: { size: 11.5 }, usePointStyle: true,
+            boxWidth: 8, boxHeight: 8, padding: 16,
             // Oculta datasets auxiliares internos (prefijo '_')
             filter: (item) => !String(item.text).startsWith('_'),
           },
         },
         tooltip: {
-          backgroundColor: '#0f172a',
-          borderColor: '#334155',
+          backgroundColor: 'rgba(14,23,39,0.96)',
+          borderColor: '#2b3f5e',
           borderWidth: 1,
-          titleColor: '#e2e8f0',
-          bodyColor: '#cbd5e1',
+          titleColor: '#e8eef7',
+          bodyColor: '#9fb0c9',
+          padding: 10,
+          cornerRadius: 8,
+          usePointStyle: true,
           titleFont: { family: 'monospace' },
           bodyFont: { family: 'monospace' },
           callbacks: {
@@ -1482,6 +1904,7 @@ function initChart() {
             },
           },
         },
+        // Constantes: se fijan una vez y persisten en todos los renders.
         annotation: { annotations: lineasReferencia() },
       },
     },
@@ -1521,6 +1944,25 @@ function aplicarResolucion() {
 }
 
 /**
+ * Cola común de todas las funciones de render.
+ *
+ * @param {object}   cfg
+ * @param {string[]} [cfg.labels]   etiquetas del eje X (si se omiten, se conservan)
+ * @param {object[]}  cfg.datasets  datasets de Chart.js
+ * @param {object}   [cfg.curva]    serie activa para las métricas: { valores, ultimo }
+ * @param {object}   [cfg.badge]    badge de modo: { texto, tono }
+ * @param {boolean}  [cfg.metricas] recalcular TIR/TBR desde la curva local
+ */
+function pintar({ labels, datasets, curva, badge, metricas = false }) {
+  if (labels) chart.data.labels = labels;
+  chart.data.datasets = datasets;
+  fijarSeriesYActualizar();
+  if (curva) estado.curvaActual = curva;
+  if (badge) setBadgeModo(badge.texto, badge.tono);
+  if (metricas) updateAllMetrics();
+}
+
+/**
  * Cambia la resolución temporal de la TRAYECTORIA: 'detalle' (5 min) o 'hora'
  * (un punto por hora). Re-muestrea la serie ya calculada, sin volver a simular.
  */
@@ -1539,20 +1981,13 @@ function renderBasal(perfil) {
     bolo_u: 0, cho_g: 0, origen: 'historico',
   }));
 
-  chart.data.labels = hist.map((p) => etiquetaTiempo(p.t));
-  chart.data.datasets = [
-    {
-      label: 'Glucemia histórica (CGM)', data: histVals,
-      borderColor: COLORES.neutral, backgroundColor: COLORES.neutral,
-      borderWidth: 2, pointRadius: 0, tension: 0.35, spanGaps: false, order: 1,
-    },
-  ];
-  chart.options.plugins.annotation.annotations = lineasReferencia();
-  fijarSeriesYActualizar();
-
-  estado.curvaActual = { valores: histVals, ultimo: histVals[histVals.length - 1] };
-  setBadgeModo('Estado basal', 'sky');
-  updateAllMetrics();
+  pintar({
+    labels: hist.map((p) => etiquetaTiempo(p.t)),
+    datasets: [lineaColor('Glucemia histórica (CGM)', histVals, COLORES.neutral)],
+    curva: { valores: histVals, ultimo: histVals[histVals.length - 1] },
+    badge: { texto: 'Estado basal', tono: 'sky' },
+    metricas: true,
+  });
 }
 
 /** Simulación predictiva completa (histórico + predicción + banda de incertidumbre). */
@@ -1594,83 +2029,67 @@ function renderSimulacion(perfil, gCHO, uInsulina, esFallback) {
     bolo_u: p.t === 0 ? uInsulina : 0, cho_g: p.t === 0 ? gCHO : 0, origen: 'simulado',
   }));
 
-  chart.data.labels = labels;
-  chart.data.datasets = [
-    // Banda de incertidumbre (±1σ): datasets auxiliares rellenos entre sí
-    { label: '_bandaInf', data: bandL, borderWidth: 0, pointRadius: 0, fill: false, tension: 0.35, order: 5 },
-    { label: 'Incertidumbre ±1σ', data: bandU, borderWidth: 0, pointRadius: 0,
-      backgroundColor: COLORES.bandaFill, fill: '-1', tension: 0.35, order: 5 },
-    // Histórico (sky-400)
-    { label: 'Glucemia histórica (CGM)', data: histVals, borderColor: COLORES.neutral,
-      backgroundColor: COLORES.neutral, borderWidth: 2, pointRadius: 0, tension: 0.35,
-      spanGaps: false, order: 1 },
-    // Predicción con color dinámico por rango glucémico (segment styling)
-    { label: 'Predicción gemelo digital', data: predVals, borderColor: COLORES.euglucemia,
-      borderWidth: 2.5, pointRadius: 0, tension: 0.35, spanGaps: false, order: 1,
-      segment: { borderColor: (c) => colorPorGlucosa((c.p0.parsed.y + c.p1.parsed.y) / 2) } },
-  ];
-  chart.options.plugins.annotation.annotations = lineasReferencia();
-  fijarSeriesYActualizar();
-
   const etiquetaModo = esFallback ? 'Predicción · PID (Fallback)'
     : (estado.rlActivo ? 'Predicción · RL' : 'Predicción · PID');
-  estado.curvaActual = { valores: todosGlucosa, ultimo: predVals[predVals.length - 1] };
-  setBadgeModo(etiquetaModo, esFallback ? 'rose' : 'emerald');
 
-  updateAllMetrics();
+  pintar({
+    labels,
+    datasets: [
+      // Banda de incertidumbre (±1σ): datasets auxiliares rellenos entre sí
+      serie('_bandaInf', bandL, { borderWidth: 0, fill: false, order: 5 }),
+      serie('Incertidumbre ±1σ', bandU, {
+        borderWidth: 0, backgroundColor: COLORES.bandaFill, fill: '-1', order: 5,
+      }),
+      lineaColor('Glucemia histórica (CGM)', histVals, COLORES.neutral),
+      // Predicción con color dinámico por rango glucémico (segment styling)
+      serie('Predicción gemelo digital', predVals, {
+        borderColor: COLORES.euglucemia, borderWidth: 2.5, segment: segmentoPorRango,
+      }),
+    ],
+    curva: { valores: todosGlucosa, ultimo: predVals[predVals.length - 1] },
+    badge: { texto: etiquetaModo, tono: esFallback ? 'rose' : 'emerald' },
+    metricas: true,
+  });
 }
 
 /**
  * Dibuja una trayectoria devuelta por el BACKEND (motor real UVA/Padova).
  * `puntos` = [{ t_min, glucosa, ... }]. Colorea por rango glucémico.
+ * Las métricas las fija el backend (`setMetricasBackend`), no se recalculan.
  */
 function renderTrayectoria(puntos, etiquetaModo, tono) {
-  const labels = puntos.map((p) => etiquetaTiempo(p.t_min));
   const vals = puntos.map((p) => p.glucosa);
-  chart.data.labels = labels;
-  chart.data.datasets = [
-    {
-      label: 'Predicción gemelo digital (UVA/Padova)', data: vals,
-      borderColor: COLORES.euglucemia, backgroundColor: COLORES.euglucemia,
-      borderWidth: 2.5, pointRadius: 0, tension: 0.35, spanGaps: false, order: 1,
-      segment: { borderColor: (c) => colorPorGlucosa((c.p0.parsed.y + c.p1.parsed.y) / 2) },
-    },
-  ];
-  chart.options.plugins.annotation.annotations = lineasReferencia();
-  fijarSeriesYActualizar();
-  estado.curvaActual = { valores: vals, ultimo: vals[vals.length - 1] };
-  setBadgeModo(etiquetaModo, tono);
+  pintar({
+    labels: puntos.map((p) => etiquetaTiempo(p.t_min)),
+    datasets: [
+      lineaColor('Predicción gemelo digital (UVA/Padova)', vals, COLORES.euglucemia, {
+        borderWidth: 2.5, segment: segmentoPorRango,
+      }),
+    ],
+    curva: { valores: vals, ultimo: vals[vals.length - 1] },
+    badge: { texto: etiquetaModo, tono },
+  });
 }
 
 /** Dibuja la validación (OE4): serie real vs predicha del backend. */
 function renderValidacion(labels, serieReal, seriePred) {
-  chart.data.labels = labels;
-  chart.data.datasets = [
-    {
-      label: 'Serie de referencia (CGM)', data: serieReal,
-      borderColor: COLORES.neutral, backgroundColor: COLORES.neutral,
-      borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: false, order: 1,
-    },
-    {
-      label: 'Predicción gemelo digital', data: seriePred,
-      borderColor: COLORES.interp, backgroundColor: COLORES.interp,
-      borderWidth: 2, borderDash: [5, 4], pointRadius: 0, tension: 0.3, spanGaps: false, order: 0,
-    },
-  ];
-  chart.options.plugins.annotation.annotations = lineasReferencia();
-  fijarSeriesYActualizar();
+  pintar({
+    labels,
+    datasets: [
+      lineaColor('Serie de referencia (CGM)', serieReal, COLORES.neutral, { tension: 0.3 }),
+      lineaColor('Predicción gemelo digital', seriePred, COLORES.interp, {
+        tension: 0.3, borderDash: [5, 4], order: 0,
+      }),
+    ],
+  });
 }
 
 /** Dibuja la serie cruda de OhioT1DM (con gaps y spikes). */
 function renderOhioRaw(raw, labels) {
-  chart.data.labels = labels;
-  chart.data.datasets = [
-    { label: 'OhioT1DM raw (CGM crudo)', data: raw, borderColor: COLORES.neutral,
-      backgroundColor: COLORES.neutral, borderWidth: 2, pointRadius: 0, tension: 0.25,
-      spanGaps: false, order: 1 },
-  ];
-  chart.options.plugins.annotation.annotations = lineasReferencia();
-  fijarSeriesYActualizar();
+  pintar({
+    labels,
+    datasets: [lineaColor('OhioT1DM raw (CGM crudo)', raw, COLORES.neutral, { tension: 0.25 })],
+  });
 }
 
 /** Dibuja la serie procesada: interpolación lineal resaltada + suavizado MM-5. */
@@ -1682,18 +2101,17 @@ function renderOhioProcesado(raw, interpolado, suavizado) {
     return (eraNull || vecinoNull) ? v : null;
   });
 
-  // Restaura las etiquetas a resolución completa (renderOhioRaw pudo haberlas
-  // re-muestreado a horaria), de modo que el snapshot quede alineado con los datos.
-  if (seriesCompletas) chart.data.labels = seriesCompletas.labels.slice();
-
-  chart.data.datasets = [
-    { label: 'Serie suavizada (MM-5)', data: suavizado, borderColor: COLORES.euglucemia,
-      backgroundColor: COLORES.euglucemia, borderWidth: 2.5, pointRadius: 0, tension: 0.35, order: 1 },
-    { label: 'Interpolación lineal', data: interpFill, borderColor: COLORES.interp,
-      backgroundColor: COLORES.interp, borderWidth: 2, borderDash: [4, 4], pointRadius: 0,
-      tension: 0, spanGaps: false, order: 0 },
-  ];
-  fijarSeriesYActualizar();
+  pintar({
+    // Restaura las etiquetas a resolución completa (renderOhioRaw pudo haberlas
+    // re-muestreado a horaria), de modo que el snapshot quede alineado con los datos.
+    labels: seriesCompletas ? seriesCompletas.labels.slice() : undefined,
+    datasets: [
+      lineaColor('Serie suavizada (MM-5)', suavizado, COLORES.euglucemia, { borderWidth: 2.5 }),
+      lineaColor('Interpolación lineal', interpFill, COLORES.interp, {
+        borderDash: [4, 4], tension: 0, order: 0,
+      }),
+    ],
+  });
 }
 
 
@@ -1714,13 +2132,8 @@ function setRL(activo, silencioso) {
   estado.rlActivo = activo;
   DOM.toggleRL.classList.toggle('on', activo);
   DOM.toggleRL.setAttribute('aria-checked', String(activo));
-  if (activo) {
-    DOM.badgeRL.textContent = 'IA Activa';
-    DOM.badgeRL.className = 'text-[10px] font-mono px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
-  } else {
-    DOM.badgeRL.textContent = 'Control manual';
-    DOM.badgeRL.className = 'text-[10px] font-mono px-2 py-1 rounded-md bg-slate-600/30 text-slate-400 border border-slate-600';
-  }
+  DOM.badgeRL.textContent = activo ? 'IA activa' : 'Control manual';
+  DOM.badgeRL.className = 'badge ' + (activo ? 'badge-ok' : 'badge-muted');
   if (!silencioso) {
     const politica = activo ? 'RL_StableBaselines3' : 'PID_heuristic';
     registrarFlujoSeguridad('control_policy_switch',
@@ -1787,7 +2200,7 @@ function cerrarModal() {
     DOM.formPaciente.reset();
     DOM.formPacienteError.textContent = '';
     _idEdicion = null;
-    DOM.modalPacienteTitulo.textContent = 'Nuevo Paciente Virtual';
+    DOM.modalPacienteTitulo.textContent = 'Nuevo paciente virtual';
     DOM.btnGuardarPaciente.textContent = 'Guardar paciente';
   }, 250);
 }
@@ -1848,7 +2261,7 @@ function llenarFormulario(p) {
  */
 function abrirEdicionPaciente(p) {
   _idEdicion = p.id;
-  DOM.modalPacienteTitulo.textContent = 'Editar Paciente Virtual';
+  DOM.modalPacienteTitulo.textContent = 'Editar paciente virtual';
   DOM.btnGuardarPaciente.textContent = 'Guardar cambios';
   llenarFormulario(p);
   DOM.formPacienteError.textContent = '';
@@ -1866,7 +2279,7 @@ function cablearFormularioPaciente(callbacks) {
   // Botón "Nuevo paciente" — abre modal en modo alta
   DOM.btnNuevoPaciente.addEventListener('click', () => {
     _idEdicion = null;
-    DOM.modalPacienteTitulo.textContent = 'Nuevo Paciente Virtual';
+    DOM.modalPacienteTitulo.textContent = 'Nuevo paciente virtual';
     DOM.btnGuardarPaciente.textContent = 'Guardar paciente';
     DOM.formPaciente.reset();
     DOM.formPacienteError.textContent = '';
@@ -2024,20 +2437,19 @@ function construirSelector() {
 
     const btn = document.createElement('button');
     btn.dataset.idx = idx;
-    btn.className = 'patient-btn w-full text-left p-3 rounded-lg border border-slate-700 bg-slate-900/50 ' +
-      'hover:border-sky-500/50 hover:bg-slate-900 transition-all duration-300';
+    btn.className = 'patient-btn';
     const etiquetaCustom = p.custom
-      ? ' <span class="text-[9px] px-1 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/30">custom</span>' : '';
+      ? ' <span class="badge badge-info" style="padding:2px 6px; font-size:9.5px;">propio</span>' : '';
     btn.innerHTML =
-      `<p class="text-xs font-medium text-slate-200 pr-12">${p.alias}${etiquetaCustom}</p>` +
-      `<p class="text-[10px] font-mono text-slate-500 mt-0.5">${p.id} · ${p.tipo}</p>`;
+      `<p class="text-[12.5px] font-medium text-[var(--ink)] pr-12 leading-snug">${p.alias}${etiquetaCustom}</p>` +
+      `<p class="text-[10.5px] font-mono text-[var(--ink-3)] mt-1">${p.id} · ${p.tipo}</p>`;
     btn.addEventListener('click', () => cargarPerfil(idx));
     fila.appendChild(btn);
 
     // Los pacientes personalizados pueden editarse y eliminarse
     if (p.custom) {
       const editar = document.createElement('button');
-      editar.className = 'absolute top-2 right-8 text-slate-500 hover:text-sky-400 transition-colors';
+      editar.className = 'absolute top-3 right-9 text-[var(--ink-3)] hover:text-[var(--info)] transition-colors';
       editar.title = 'Editar paciente';
       editar.setAttribute('aria-label', `Editar ${p.alias}`);
       editar.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>';
@@ -2045,7 +2457,7 @@ function construirSelector() {
       fila.appendChild(editar);
 
       const del = document.createElement('button');
-      del.className = 'absolute top-2 right-2 text-slate-500 hover:text-rose-400 transition-colors';
+      del.className = 'absolute top-3 right-3 text-[var(--ink-3)] hover:text-[var(--risk)] transition-colors';
       del.title = 'Eliminar paciente';
       del.setAttribute('aria-label', `Eliminar ${p.alias}`);
       del.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>';
@@ -2059,11 +2471,7 @@ function construirSelector() {
 
 function marcarSeleccionado(idx) {
   DOM.selectorPacientes.querySelectorAll('.patient-btn').forEach((b) => {
-    const sel = Number(b.dataset.idx) === idx;
-    b.classList.toggle('border-sky-500', sel);
-    b.classList.toggle('bg-slate-900', sel);
-    b.classList.toggle('ring-1', sel);
-    b.classList.toggle('ring-sky-500/40', sel);
+    b.classList.toggle('is-active', Number(b.dataset.idx) === idx);
   });
 }
 
@@ -2077,10 +2485,26 @@ function manejarEliminar(e, id) {
 }
 
 function chipParam(label, valor, alerta) {
-  const color = alerta ? 'text-rose-400' : 'text-sky-300';
-  return `<div class="bg-slate-900/60 border border-slate-700 rounded-md px-2 py-1.5">` +
-    `<span class="text-slate-500">${label}</span>` +
-    `<span class="block ${color} font-semibold tnum">${valor}</span></div>`;
+  return `<div class="chip${alerta ? ' chip-alert' : ''}">` +
+    `<span class="chip-label">${label}</span>` +
+    `<span class="chip-value">${valor}</span></div>`;
+}
+
+/**
+ * Pinta la ficha clínica del perfil. Los cuatro parámetros terapéuticos y el
+ * límite de bolo son comunes a ambos modos; `chipsExtra` aporta los propios de
+ * cada motor (absorción/variabilidad en local, peso/edad en el motor real).
+ */
+function pintarFicha(perfil, chipsExtra = '') {
+  DOM.perfilClinico.textContent = perfil.perfil_clinico;
+  const par = perfil.parametros;
+  DOM.perfilParametros.innerHTML =
+    chipParam('Ratio comida', par.CR + ' g/U') +
+    chipParam('Sensibilidad', par.ISF + ' mg/dL') +
+    chipParam('Dosis diaria', par.TDD + ' U/día') +
+    chipParam('Glucosa base', par.glucosaBasal + ' mg/dL') +
+    chipsExtra +
+    chipParam('Límite bolo', perfil.umbral_hipoglicemia_critica + ' U', true);
 }
 
 /** Carga un perfil: ficha clínica, estado basal y log. */
@@ -2089,16 +2513,10 @@ function cargarPerfil(idx) {
   const perfil = estado.perfilActual;
   marcarSeleccionado(idx);
 
-  DOM.perfilClinico.textContent = perfil.perfil_clinico;
   const par = perfil.parametros;
-  DOM.perfilParametros.innerHTML =
-    chipParam('Ratio comida', par.CR + ' g/U') +
-    chipParam('Sensibilidad', par.ISF + ' mg/dL') +
-    chipParam('Dosis diaria', par.TDD + ' U/día') +
-    chipParam('Glucosa base', par.glucosaBasal + ' mg/dL') +
+  pintarFicha(perfil,
     chipParam('Absorción', par.pico_absorcion_cho + ' min') +
-    chipParam('Variabilidad', (par.variabilidad * 100).toFixed(0) + '%') +
-    chipParam('Límite bolo', perfil.umbral_hipoglicemia_critica + ' U', true);
+    chipParam('Variabilidad', (par.variabilidad * 100).toFixed(0) + '%'));
 
   renderBasal(perfil);
 
@@ -2110,20 +2528,32 @@ function cargarPerfil(idx) {
 /* =========================================================================
  * SIMULACIÓN (con verificación de seguridad previa)
  * ========================================================================= */
-function ejecutarSimulacion() {
-  const perfil = estado.perfilActual;
-  if (!perfil) return;
+/**
+ * Lee la dosis solicitada en la UI y aplica la verificación de seguridad ANTES
+ * de simular. Si el bolo excede el umbral del perfil, anula preventivamente el
+ * RL, abre la alerta de fallback y devuelve null; si no, devuelve la dosis.
+ * Compartida por el motor local y el motor real.
+ */
+function leerDosisSegura(perfil) {
   const gCHO = parseFloat(DOM.inputCHO.value);
   const uInsulina = parseFloat(DOM.inputInsulina.value);
   const umbral = perfil.umbral_hipoglicemia_critica;
 
-  // Verificación de dosis peligrosa ANTES de simular
   if (uInsulina > umbral) {
     estado.simPendiente = { gCHO, uInsulinaOriginal: uInsulina, umbral };
     setRL(false, true);          // anulación preventiva del RL (con animación)
     abrirModal(uInsulina, umbral);
-    return;
+    return null;
   }
+  return { gCHO, uInsulina };
+}
+
+function ejecutarSimulacion() {
+  const perfil = estado.perfilActual;
+  if (!perfil) return;
+  const dosis = leerDosisSegura(perfil);
+  if (!dosis) return;
+  const { gCHO, uInsulina } = dosis;
 
   // Camino normal
   sesionActiva.fk_paciente = perfil.id;
@@ -2212,9 +2642,9 @@ function construirSelectorBackend() {
   const nReales = pacientesBackend.filter((p) => p.tipo === 'real').length;
   const nVirtuales = pacientesBackend.length - nReales;
   const info = document.createElement('p');
-  info.className = 'text-[10px] text-slate-500 mt-2 font-mono flex items-center gap-1';
-  info.innerHTML = `<span class="text-emerald-400">${nVirtuales}</span> virtuales UVA/Padova (FDA)` +
-    (nReales ? ` · <span class="text-sky-400">${nReales}</span> reales OhioT1DM` : '');
+  info.className = 'text-[10.5px] text-[var(--ink-3)] mt-2.5 font-mono flex items-center gap-1';
+  info.innerHTML = `<span class="text-[var(--ok)] font-semibold">${nVirtuales}</span> virtuales UVA/Padova (FDA)` +
+    (nReales ? ` · <span class="text-[var(--info)] font-semibold">${nReales}</span> reales OhioT1DM` : '');
   DOM.selectorPacientes.appendChild(info);
 
   // El botón "Nuevo paciente" no aplica en modo backend (perfiles validados FDA).
@@ -2227,16 +2657,10 @@ async function cargarPerfilBackend(idx) {
   const dd = document.getElementById('dropdownPacientes');
   if (dd) dd.value = String(idx);
 
-  DOM.perfilClinico.textContent = p.perfil_clinico;
   const par = p.parametros;
-  DOM.perfilParametros.innerHTML =
-    chipParam('Ratio comida', par.CR + ' g/U') +
-    chipParam('Sensibilidad', par.ISF + ' mg/dL') +
-    chipParam('Dosis diaria', par.TDD + ' U/día') +
-    chipParam('Glucosa base', par.glucosaBasal + ' mg/dL') +
+  pintarFicha(p,
     chipParam('Peso', par.peso_kg + ' kg') +
-    chipParam('Edad', (par.edad ?? '—') + ' años') +
-    chipParam('Límite bolo', p.umbral_hipoglicemia_critica + ' U', true);
+    chipParam('Edad', (par.edad ?? '—') + ' años'));
 
   setBadgeModo('Estado basal (motor real)', 'sky');
   // Trayectoria basal real (sin comida ni bolo) desde el motor UVA/Padova.
@@ -2255,17 +2679,9 @@ async function cargarPerfilBackend(idx) {
 function ejecutarSimulacionBackend() {
   const p = estado.perfilActual;
   if (!p) return;
-  const gCHO = parseFloat(DOM.inputCHO.value);
-  const uIns = parseFloat(DOM.inputInsulina.value);
-  const umbral = p.umbral_hipoglicemia_critica;
-
-  if (uIns > umbral) {
-    estado.simPendiente = { gCHO, uInsulinaOriginal: uIns, umbral };
-    setRL(false, true);
-    abrirModal(uIns, umbral);
-    return;
-  }
-  correrBackend(p, gCHO, uIns, estado.rlActivo, false);
+  const dosis = leerDosisSegura(p);
+  if (!dosis) return;
+  correrBackend(p, dosis.gCHO, dosis.uInsulina, estado.rlActivo, false);
 }
 
 function continuarConFallbackBackend() {
@@ -2366,11 +2782,8 @@ function cargarOhio() {
  * ========================================================================= */
 function setResolucion(modo) {
   setResolucionEje(modo);
-  const base = 'px-2 py-1 text-[10px] font-mono rounded-md border transition-all ';
-  const activo = 'border-sky-500/30 bg-sky-500/15 text-sky-400';
-  const inactivo = 'border-slate-700 text-slate-400 hover:text-slate-200';
-  DOM.btnEjeDetalle.className = base + (modo === 'detalle' ? activo : inactivo);
-  DOM.btnEjeHora.className = base + (modo === 'hora' ? activo : inactivo);
+  DOM.btnEjeDetalle.classList.toggle('is-active', modo === 'detalle');
+  DOM.btnEjeHora.classList.toggle('is-active', modo === 'hora');
 }
 
 /* =========================================================================
