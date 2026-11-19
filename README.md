@@ -22,15 +22,14 @@ El frontend detecta el backend automáticamente: si responde en
 ### Arranque del modo completo
 
 ```powershell
-# Terminal 1 — backend (motor real)
+# Una sola terminal: el backend sirve la API y el frontend en el mismo puerto
 cd backend
 python -m venv venv
 venv\Scripts\python -m pip install -r requirements.txt
 venv\Scripts\python -m app.rl.entrenar --patient adult#001 --timesteps 250000   # entrena el RL (una vez)
 venv\Scripts\uvicorn app.main:app --port 8001
 
-# Terminal 2 — frontend
-node dev-server.mjs        # http://localhost:8000
+# Abre http://localhost:8001
 ```
 
 ---
@@ -41,20 +40,20 @@ Esta versión usa **módulos ES** (`import`/`export`), por lo que **no se abre c
 doble clic** (el navegador bloquea los módulos cargados desde `file://`).
 Necesitas servirlo desde un servidor local. Cualquiera de estas opciones sirve:
 
-### Opción A — Servidor incluido (Node, sin dependencias) — recomendada
-```bash
-# Desde la carpeta del proyecto:
-node dev-server.mjs
-# Luego abre en el navegador:
-#   http://localhost:8000
+### Opción A — El propio backend (recomendada)
+Sirve la API **y** el frontend en un solo puerto, sin CORS ni segundo proceso:
+```powershell
+backend\venv\Scripts\python -m uvicorn app.main:app --port 8001 --app-dir backend
+# Luego abre:  http://localhost:8001
 ```
+
 
 ### Opción B — VSCode Live Server
 1. Instala la extensión **Live Server**.
 2. Clic derecho sobre `index.html` → **"Open with Live Server"**.
 3. Se abre en `http://127.0.0.1:5500/index.html`.
 
-### Opción C — Python (solo si lo tienes instalado)
+### Opción C — Solo frontend, sin backend (modo offline)
 ```bash
 python -m http.server 8000   # → http://localhost:8000
 ```
@@ -95,7 +94,8 @@ biotwin/
 │       ├── consola.js         # Consola criptográfica (Módulo 5)
 │       └── modal.js           # Control RL/PID y fallback (Módulo 3)
 │   └── main.js                # Orquestación: eventos, arranque, flujo
-├── dev-server.mjs             # Servidor estático de desarrollo (Node, sin deps)
+├── build.py                   # Genera el monolito portable desde los módulos ES
+├── deploy.py                  # Sube el monolito al FTP de producción (FTPS)
 ├── BioTwin_DM_Prototype_v1.html   # Build portable de un solo archivo
 └── README.md
 ```

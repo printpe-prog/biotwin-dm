@@ -46,11 +46,9 @@ La API queda en `http://localhost:8001` · documentación interactiva en
 ## Frontend + backend
 
 ```powershell
-# Terminal 1 — backend
+# Un solo proceso: FastAPI sirve la API y el frontend modular en el mismo origen
 cd backend ; venv\Scripts\uvicorn app.main:app --port 8001
-
-# Terminal 2 — frontend (raíz del proyecto)
-node dev-server.mjs        # http://localhost:8000
+# Abre http://localhost:8001
 ```
 
 El frontend detecta el backend automáticamente (`/salud`). Si no responde, cae

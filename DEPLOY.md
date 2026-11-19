@@ -4,9 +4,16 @@
 
 | Entorno | URL / Acceso | Descripción |
 |---------|-------------|-------------|
-| **Frontend dev** | `http://localhost:8000` | `node dev-server.mjs` — versión modular ES |
-| **Backend dev** | `http://localhost:8001` | `uvicorn app.main:app` — motor real (FastAPI + simglucose + RL) |
+| **Dev (recomendado)** | `http://localhost:8001` | `uvicorn app.main:app` — un solo puerto sirve la API **y** el frontend modular |
+| **Dev sin backend** | `http://localhost:8000` | `python -m http.server 8000` — solo el frontend (modo offline) |
 | **Producción (frontend)** | `http://hostlan.cl/biotwin/` | Monolito `index.html` via FTP (modo offline) |
+
+> **Herramientas:** el proyecto usa **solo Python** (el mismo intérprete del
+> backend). No requiere Node ni npm.
+
+> **Módulos ES y `file://`:** la versión modular necesita servirse por HTTP; no
+> se abre con doble clic. Para eso existe el monolito
+> `BioTwin_DM_Prototype_v1.html`, que sí funciona desde el sistema de archivos.
 
 > **Backend (motor real):** `hostlan.cl` es hosting estático FTP y **no ejecuta
 > Python**. El backend FastAPI corre **local** para la defensa (decisión actual:
@@ -21,12 +28,16 @@
 
 ```
 1. Editar módulos en  js/  css/  index.html
-2. Probar localmente:   node dev-server.mjs  →  http://localhost:8000
-3. Generar monolito:    node build.mjs
+2. Probar localmente:   backend/venv/Scripts/python.exe -m uvicorn app.main:app \
+                            --port 8001 --app-dir backend   ->  http://localhost:8001
+3. Generar monolito:    python build.py
 4. Commit en git:       git add . && git commit -m "descripción del cambio"
 5. Push a GitHub:       git push origin main
-6. Deploy a FTP:        node deploy.mjs          (script de deploy automatizado)
+6. Deploy a FTP:        python deploy.py
 ```
+
+> El paso 3 es **obligatorio** tras cualquier cambio en `js/`, `css/` o
+> `index.html`: el monolito es un archivo generado y no debe editarse a mano.
 
 ---
 
@@ -37,10 +48,13 @@
 - **Usuario:** `biotwin@hostlan.cl`
 - **Contraseña:** *(no guardar aquí — usar variable de entorno `FTP_PASS`)*
 
-Para deploy manual:
-```bash
-FTP_PASS=<tu_contraseña> node deploy.mjs
+Para deploy manual (PowerShell):
+```powershell
+$env:FTP_PASS = "<tu_contraseña>"; python deploy.py
 ```
+
+`deploy.py` entrega la contraseña directamente a la conexión FTPS, de modo que
+no viaja como argumento en la línea de comandos ni queda en el historial.
 
 ---
 
@@ -67,9 +81,8 @@ FTP_PASS=<tu_contraseña> node deploy.mjs
 biotwin/
 ├── index.html              # Punto de entrada (versión modular, dev)
 ├── BioTwin_DM_Prototype_v1.html  # Build portable (producción, autogenerado)
-├── build.mjs               # Genera el monolito desde los módulos ES
-├── deploy.mjs              # Sube a FTP via FTPS
-├── dev-server.mjs          # Servidor local de desarrollo
+├── build.py                # Genera el monolito desde los módulos ES
+├── deploy.py               # Sube a FTP via FTPS
 ├── css/styles.css          # Estilos propios (tema oscuro clínico)
 └── js/
     ├── config.js           # Configuración central

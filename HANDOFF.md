@@ -205,7 +205,7 @@ const BASE = (
    - (Solo si necesitas acceso remoto real)
 
 ### Para producción (hostlan.cl)
-- `node deploy.mjs` sube el monolito HTML estático
+- `python deploy.py` sube el monolito HTML estático
 - Versión offline (sin backend Python)
 - Útil como demo pública, pero sin RL real ni pacientes OhioT1DM
 

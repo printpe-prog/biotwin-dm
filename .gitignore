@@ -1,7 +1,7 @@
 node_modules/
 .env
 *.local
-__*
+__pycache__/
 
 # Logs de ejecución de los servidores en segundo plano
 *.log
@@ -17,3 +17,7 @@ package-lock.json
 # Temporales de túnel (contraseñas generadas, logs de cloudflared/ssh)
 _*.txt
 _*.log
+
+# Configuracion local del editor (rutas de la maquina)
+.vscode/
+*.code-workspace
