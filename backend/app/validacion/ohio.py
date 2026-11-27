@@ -140,22 +140,30 @@ def _serie_referencia(patient_id: str):
 # ===================== Predictor autorregresivo =====================
 def _ventanas(entrada: np.ndarray, objetivo: np.ndarray, p: int, h: int):
     """
-    Construye features AR a partir del historial de `entrada` y predice el
-    INCREMENTO a h pasos sobre `objetivo` (delta respecto de la persistencia),
-    lo que ancla el predictor al valor actual.
+    Construye las features del predictor y el incremento a h pasos.
 
-    Las features solo usan muestras hasta t-1; el valor a predecir es
-    objetivo[t+h]. Devuelve (X, delta, base) con base = entrada[t].
+    Montaje (el mismo que documenta la sección 7.4 del informe):
+      - `entrada`  = media móvil causal, para filtrar el ruido del sensor.
+      - `objetivo` = señal CRUDA del sensor, que es lo que hay que anticipar.
+      - el ancla de persistencia es el VALOR ACTUAL OBSERVADO, objetivo[t]: al
+        emitir un pronóstico esa lectura ya se conoce, de modo que anclar en el
+        valor suavizado empeoraría artificialmente la referencia.
+
+    Features: p medias móviles del historial, dos cambios de tendencia y la
+    lectura actual. Ninguna usa muestras posteriores a t.
+
+    Devuelve (X, delta, base) con base = objetivo[t] y delta = objetivo[t+h] - base.
     """
     X, delta, base = [], [], []
     for t in range(p, len(entrada) - h):
         ventana = entrada[t - p : t]
+        actual = objetivo[t]
         feats = np.concatenate(
-            [ventana, [ventana[-1] - ventana[0], ventana[-1] - ventana[-2]]]
+            [ventana, [ventana[-1] - ventana[0], ventana[-1] - ventana[-2]], [actual]]
         )
         X.append(feats)
-        base.append(entrada[t])
-        delta.append(objetivo[t + h] - entrada[t])
+        base.append(actual)
+        delta.append(objetivo[t + h] - actual)
     return np.array(X), np.array(delta), np.array(base)
 
 

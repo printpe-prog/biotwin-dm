@@ -39,14 +39,15 @@ cinco semillas. Reproducibles con `python backend/medir_controladores.py`.
 | Tiempo en rango — controlador PID | > 80 % | **93,3 %** (95,2 % promedio) ✅ |
 | Tiempo en rango — agente PPO | > 80 % | 42,9 % (40,8 % promedio) ❌ |
 | Tiempo en hipoglicemia (TBR) | < 4 % | **0,0 %** ✅ |
-| Error de predicción (RMSE) | < 25 mg/dL | **16,3 mg/dL** ✅ |
-| Ajuste del modelo (R²) | ≥ 0,85 | 0,739 ❌ |
+| Error de predicción (RMSE) | < 25 mg/dL | **15,1 mg/dL** ✅ |
+| Ajuste del modelo (R²) | ≥ 0,85 | 0,777 ❌ |
 | Perfiles virtuales | ≥ 10 | **30** (niños, adolescentes, adultos) ✅ |
 
 **Sobre el predictor:** la evaluación predice la señal **cruda** del sensor. Medirla contra la
 serie suavizada eleva el R² a 0,899, pero eso resuelve un problema más fácil que el real: se
 estaría prediciendo una versión alisada de la glucosa, no la que el sensor entrega. Con la
-medición honesta el error cumple la meta y el ajuste no.
+medición honesta el error cumple la meta y el ajuste no. Coincide con la sección 7.4 del
+informe de título (RMSE 15,11 · R² 0,777).
 
 **Hallazgo principal:** el controlador PID clínico cumple la meta terapéutica, pero el
 agente PPO no la alcanza y tampoco supera a la línea base (una infusión basal constante
