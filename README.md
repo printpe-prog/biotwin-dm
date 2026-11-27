@@ -39,9 +39,14 @@ cinco semillas. Reproducibles con `python backend/medir_controladores.py`.
 | Tiempo en rango — controlador PID | > 80 % | **93,3 %** (95,2 % promedio) ✅ |
 | Tiempo en rango — agente PPO | > 80 % | 42,9 % (40,8 % promedio) ❌ |
 | Tiempo en hipoglicemia (TBR) | < 4 % | **0,0 %** ✅ |
-| Error de predicción (RMSE) | < 25 mg/dL | **10,0 mg/dL** ✅ |
-| Ajuste del modelo (R²) | ≥ 0,85 | **0,899** ✅ |
+| Error de predicción (RMSE) | < 25 mg/dL | **16,3 mg/dL** ✅ |
+| Ajuste del modelo (R²) | ≥ 0,85 | 0,739 ❌ |
 | Perfiles virtuales | ≥ 10 | **30** (niños, adolescentes, adultos) ✅ |
+
+**Sobre el predictor:** la evaluación predice la señal **cruda** del sensor. Medirla contra la
+serie suavizada eleva el R² a 0,899, pero eso resuelve un problema más fácil que el real: se
+estaría prediciendo una versión alisada de la glucosa, no la que el sensor entrega. Con la
+medición honesta el error cumple la meta y el ajuste no.
 
 **Hallazgo principal:** el controlador PID clínico cumple la meta terapéutica, pero el
 agente PPO no la alcanza y tampoco supera a la línea base (una infusión basal constante
@@ -57,7 +62,15 @@ tal cual.
 | **Completo** | Backend Python real: `simglucose` + agente RL + validación OhioT1DM + cifrado Fernet | Requiere levantar el backend (ver [`backend/README.md`](backend/README.md)) |
 | **Offline / portable** | Motor JavaScript local (modelo compartimental RK4) | Solo el frontend — abre `BioTwin_DM_Prototype_v1.html` o sirve `index.html` |
 
-El frontend detecta el backend automáticamente: si responde en `localhost:8001` usa el motor real; si no, cae al motor local.
+La vista incluye **30 gemelos digitales preconfigurados** (10 adultos, 10 adolescentes
+y 10 infantiles) y el botón **Nuevo paciente** para crear un perfil de prueba.
+Los perfiles personalizados se guardan y simulan en el navegador; el modo conectado
+usa simglucose para los gemelos del catálogo. La versión portable usa el modelo local
+para ambos recorridos. La gráfica identifica el motor y proyecta **6 horas**.
+
+El catálogo portable contiene solo perfiles virtuales. Para actualizarlo después de
+cambiar la versión de simglucose, ejecuta `python backend/exportar_catalogo.py` en el
+entorno del backend y luego `python build.py`.
 
 ### Arranque rápido (modo completo)
 
@@ -77,7 +90,8 @@ venv\Scripts\uvicorn app.main:app --port 8001
 
 ### Solo quiero verlo, sin instalar nada
 
-Abre **`BioTwin_DM_Prototype_v1.html`** — es el prototipo empaquetado en un único archivo autocontenido, con doble clic funciona.
+Abre **`BioTwin_DM_Prototype_v1.html`** con doble clic. El modo portable funciona sin
+servidor Python y usa Internet para cargar las bibliotecas de la interfaz.
 
 ## Stack técnico
 

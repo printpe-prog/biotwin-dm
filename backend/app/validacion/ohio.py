@@ -104,56 +104,72 @@ def _serie_sintetica(semilla: int = 559, horas: int = 72) -> tuple:
 
 def _suavizar(serie: list[float], ventana: int = 7) -> list[float]:
     """
-    Media móvil centrada (preprocesamiento del informe: filtrado de señal CGM).
-    Reduce el ruido de calibración del sensor antes de la inferencia.
+    Media móvil CAUSAL (solo muestras pasadas) para filtrar el ruido de
+    calibración del sensor antes de la inferencia.
+
+    Antes era una media centrada, que promedia también muestras posteriores al
+    instante actual. En un predictor eso es inadmisible: el modelo recibiría
+    información del futuro que en uso real no existe.
     """
     arr = np.asarray(serie, dtype=float)
-    k = ventana // 2
     out = np.copy(arr)
     for i in range(len(arr)):
-        a, b = max(0, i - k), min(len(arr), i + k + 1)
-        out[i] = arr[a:b].mean()
+        out[i] = arr[max(0, i - ventana + 1) : i + 1].mean()
     return out.tolist()
 
 
 def _serie_referencia(patient_id: str):
+    """
+    Devuelve (entrada, objetivo, fuente).
+
+    `entrada` va suavizada —filtrar el ruido del sensor es preprocesamiento
+    legítimo— pero `objetivo` es la señal CRUDA: lo que se evalúa es la
+    capacidad de anticipar la glucosa que el sensor realmente mide, no una
+    versión alisada de ella. Evaluar contra la serie suavizada infla el R²
+    porque convierte el problema en uno más fácil que el real.
+    """
     ruta = _buscar_ohio(patient_id)
     if ruta is not None:
-        serie = _parse_ohio_xml(ruta)
-        return _suavizar(serie), f"OhioT1DM real ({ruta.name})"
+        cruda = _parse_ohio_xml(ruta)
+        return _suavizar(cruda), list(cruda), f"OhioT1DM real ({ruta.name})"
     serie, fuente = _serie_sintetica()
-    return _suavizar(list(serie)), fuente
+    cruda = list(serie)
+    return _suavizar(cruda), cruda, fuente
 
 
 # ===================== Predictor autorregresivo =====================
-def _ventanas(serie: np.ndarray, p: int, h: int):
+def _ventanas(entrada: np.ndarray, objetivo: np.ndarray, p: int, h: int):
     """
-    Construye features AR y predice el INCREMENTO a h pasos (delta sobre la
-    persistencia), lo que ancla el predictor al valor actual y mejora el R².
-    Devuelve (X, delta, base) donde base = valor actual (serie[t]).
+    Construye features AR a partir del historial de `entrada` y predice el
+    INCREMENTO a h pasos sobre `objetivo` (delta respecto de la persistencia),
+    lo que ancla el predictor al valor actual.
+
+    Las features solo usan muestras hasta t-1; el valor a predecir es
+    objetivo[t+h]. Devuelve (X, delta, base) con base = entrada[t].
     """
     X, delta, base = [], [], []
-    for t in range(p, len(serie) - h):
-        ventana = serie[t - p : t]
+    for t in range(p, len(entrada) - h):
+        ventana = entrada[t - p : t]
         feats = np.concatenate(
             [ventana, [ventana[-1] - ventana[0], ventana[-1] - ventana[-2]]]
         )
         X.append(feats)
-        base.append(serie[t])
-        delta.append(serie[t + h] - serie[t])
+        base.append(entrada[t])
+        delta.append(objetivo[t + h] - entrada[t])
     return np.array(X), np.array(delta), np.array(base)
 
 
 def validar_ohio(patient_id: str = "559", horizonte_pred_min: int = 30) -> dict:
-    serie_lst, fuente = _serie_referencia(patient_id)
-    serie = np.array(serie_lst, dtype=float)
-    n = len(serie)
+    entrada_lst, objetivo_lst, fuente = _serie_referencia(patient_id)
+    entrada = np.array(entrada_lst, dtype=float)
+    objetivo = np.array(objetivo_lst, dtype=float)
+    n = len(entrada)
     if n < 40:
         raise ValueError("Serie de referencia demasiado corta para validar.")
 
     h = max(1, horizonte_pred_min // _PASO_SERIE)
     p = 12  # ventana AR de 60 min (12 muestras de 5 min)
-    X, delta, base = _ventanas(serie, p, h)
+    X, delta, base = _ventanas(entrada, objetivo, p, h)
 
     split = int(len(X) * 0.6)
     modelo = make_pipeline(StandardScaler(), Ridge(alpha=1.0))
@@ -162,7 +178,7 @@ def validar_ohio(patient_id: str = "559", horizonte_pred_min: int = 30) -> dict:
 
     base_te = base[split:]
     pred = base_te + delta_pred              # predicción absoluta = persistencia + corrección
-    real = base_te + delta[split:]           # = serie[t+h]
+    real = base_te + delta[split:]           # = objetivo[t+h], la señal CRUDA del sensor
 
     rmse = float(np.sqrt(mean_squared_error(real, pred)))
     mae = float(mean_absolute_error(real, pred))

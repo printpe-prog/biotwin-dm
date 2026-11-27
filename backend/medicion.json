@@ -71,10 +71,10 @@
  "predictor": {
   "fuente": "in-silico (simglucose + ruido Dexcom)",
   "n_muestras": 339,
-  "rmse": 10.0,
-  "mae": 7.6,
-  "r2": 0.899,
+  "rmse": 16.33,
+  "mae": 12.41,
+  "r2": 0.739,
   "cumple_rmse": true,
-  "cumple_r2": true
+  "cumple_r2": false
  }
 }
